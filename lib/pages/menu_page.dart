@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:saku_cerdas/services/kategori_services.dart';
 import 'package:saku_cerdas/services/saldo_service.dart';
 
+// Tambahkan import halaman tujuan di sini
+import 'package:saku_cerdas/pages/kategori_page.dart';
+import 'package:saku_cerdas/pages/saldo_page.dart';
+
 class MenuPage extends StatefulWidget {
   const MenuPage({Key? key}) : super(key: key);
 
@@ -23,26 +27,28 @@ class _MenuPageState extends State<MenuPage> {
     _loadCounts();
   }
 
-  // Mengambil jumlah kategori dan saldo dari database
   Future<void> _loadCounts() async {
     try {
-      final kategoriList = await _kategoriService.getAllKategori(); //
-      final saldoList = await _saldoService.getAllSaldo(); //
+      final kategoriList = await _kategoriService.getAllKategori();
+      final saldoList = await _saldoService.getAllSaldo();
 
-      setState(() {
-        _countKategori = kategoriList.length;
-        _countSaldo = saldoList.length;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _countKategori = kategoriList.length;
+          _countSaldo = saldoList.length;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
       debugPrint("Error loading counts: $e");
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Warna sesuai permintaan Anda
     const colorPrimary = Color(0xFF4300FF);
     const colorSecondary = Color(0xFF0065F8);
 
@@ -63,11 +69,9 @@ class _MenuPageState extends State<MenuPage> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-
-                  // Baris berisi 2 Card (Kategori dan Saldo)
                   Row(
                     children: [
-                      // Card Kategori
+                      // Card Kategori dengan navigasi ke KategoriPage
                       _buildMenuCard(
                         context,
                         title: "Kategori",
@@ -75,12 +79,16 @@ class _MenuPageState extends State<MenuPage> {
                         icon: Icons.category_rounded,
                         color: colorPrimary,
                         onTap: () {
-                          // Navigasi ke halaman manajemen kategori nantinya
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const KategoriPage()),
+                          ).then((_) =>
+                              _loadCounts()); // Refresh jumlah setelah kembali
                         },
                       ),
                       const SizedBox(width: 16),
-
-                      // Card Saldo
+                      // Card Saldo dengan navigasi ke SaldoPage
                       _buildMenuCard(
                         context,
                         title: "Saldo",
@@ -88,20 +96,19 @@ class _MenuPageState extends State<MenuPage> {
                         icon: Icons.account_balance_wallet_rounded,
                         color: colorSecondary,
                         onTap: () {
-                          // Navigasi ke halaman manajemen saldo nantinya
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const SaldoPage()),
+                          ).then((_) =>
+                              _loadCounts()); // Refresh jumlah setelah kembali
                         },
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 24),
-
-                  // Pembatas untuk menu masa depan
                   const Divider(thickness: 1, color: Colors.grey),
-
                   const SizedBox(height: 16),
-
-                  // Contoh placeholder menu tambahan di bawah pembatas
                   ListTile(
                     leading: const Icon(Icons.settings),
                     title: const Text("Pengaturan Aplikasi"),
@@ -118,7 +125,6 @@ class _MenuPageState extends State<MenuPage> {
     );
   }
 
-  // Widget pendukung untuk membuat Card Menu secara seragam
   Widget _buildMenuCard(
     BuildContext context, {
     required String title,

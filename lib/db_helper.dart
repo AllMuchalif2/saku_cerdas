@@ -43,9 +43,9 @@ class DBHelper {
         tabungan_id INTEGER PRIMARY KEY AUTOINCREMENT,
         nama TEXT NOT NULL,
         target_jumlah REAL NOT NULL,
-        jumlah REAL DEFAULT 0,
-      )
-    ''');
+        jumlah REAL DEFAULT 0
+      ) 
+    '''); // <-- Koma setelah DEFAULT 0 sudah dihapus
 
     // 3. TABEL SALDO
     await db.execute('''

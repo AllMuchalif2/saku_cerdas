@@ -42,7 +42,6 @@ class _TabunganPageState extends State<TabunganPage> {
         // UPDATE DATA
         Tabungan updateTabungan = Tabungan(
           tabunganId: tabungan.tabunganId,
-          saldoId: tabungan.saldoId, // Gunakan saldoId lama
           nama: nama,
           targetJumlah: target,
           jumlah: jumlah,
@@ -51,8 +50,6 @@ class _TabunganPageState extends State<TabunganPage> {
       } else {
         // INSERT DATA BARU
         Tabungan newTabungan = Tabungan(
-          saldoId:
-              1, // Default saldo_id (sesuaikan dengan logika aplikasi Anda)
           nama: nama,
           targetJumlah: target,
           jumlah: jumlah,

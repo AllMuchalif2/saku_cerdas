@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:saku_cerdas/models/saldo.dart';
 import 'package:saku_cerdas/services/saldo_service.dart';
 
-class TambahSaldoPage extends StatefulWidget {
-  const TambahSaldoPage({super.key});
+class SaldoPage extends StatefulWidget {
+  const SaldoPage({super.key});
 
   @override
-  State<TambahSaldoPage> createState() => _TambahSaldoPageState();
+  State<SaldoPage> createState() => _SaldoPageState();
 }
 
-class _TambahSaldoPageState extends State<TambahSaldoPage> {
+class _SaldoPageState extends State<SaldoPage> {
   final _formKey = GlobalKey<FormState>();
   final _namaController = TextEditingController();
   final _totalController = TextEditingController();
