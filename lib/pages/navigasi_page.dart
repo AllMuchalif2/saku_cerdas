@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+
+import 'package:saku_cerdas/pages/dashboard_page.dart';
+import 'package:saku_cerdas/pages/transaksi_page.dart';
+import 'package:saku_cerdas/pages/tambah_transaksi_page.dart';
+import 'package:saku_cerdas/pages/tabungan_page.dart';
+import 'package:saku_cerdas/pages/menu_page.dart';
 // import 'ringkasan.dart';
 // import 'transaksi.dart';
 // import 'tambah_transaksi.dart';
@@ -13,16 +19,16 @@ class NavigasiPage extends StatefulWidget {
 }
 
 class _NavigasiPageState extends State<NavigasiPage> {
-  // Sekarang ada 5 index (0 sampai 4)
   int _selectedIndex = 0;
 
   // Daftar 5 halaman utama
   final List<Widget> _pages = [
-    // const RingkasanScreen(),
-    // const TransaksiScreen(),
+    const DashboardPage(),
+    const TransaksiPage(),
+    const TambahTransaksiPage(),
+    const TabunganPage(),
+    const MenuPage(),
     // const TambahTransaksiScreen(),
-    // const TabunganScreen(),
-    // const MenuLainnyaScreen(),
   ];
 
   @override

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../services/transaksi_services.dart';
+import 'package:saku_cerdas/services/transaksi_services.dart';
 
 class TransaksiPage extends StatefulWidget {
   const TransaksiPage({super.key});

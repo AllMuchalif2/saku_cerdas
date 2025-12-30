@@ -1,0 +1,274 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:saku_cerdas/models/saldo.dart';
+import 'package:saku_cerdas/models/tabungan.dart';
+
+import 'package:saku_cerdas/services/saldo_service.dart';
+import 'package:saku_cerdas/services/tabungan_services.dart';
+import 'package:saku_cerdas/services/transaksi_services.dart';
+
+class DashboardPage extends StatefulWidget {
+  const DashboardPage({Key? key}) : super(key: key);
+
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  final SaldoService _saldoService = SaldoService();
+  final TabunganService _tabunganService = TabunganService();
+
+  List<Saldo> _listSaldo = [];
+  List<Tabungan> _listTabungan = [];
+  List<Map<String, dynamic>> _latestTransaksi = [];
+  double _totalPemasukan = 0;
+  double _totalPengeluaran = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    setState(() => _isLoading = true);
+
+    // Ambil data secara paralel
+    final results = await Future.wait([
+      _saldoService.getAllSaldo(),
+      _tabunganService.getAllTabungan(),
+      TransaksiService.getAllTransaksi(),
+    ]);
+
+    final allTransaksi = results[2] as List<Map<String, dynamic>>;
+
+    // Hitung ringkasan dan ambil 3 transaksi terbaru
+    double income = 0;
+    double expense = 0;
+    for (var t in allTransaksi) {
+      if (t['tipe'] == 'PEMASUKAN') {
+        income += t['jumlah'];
+      } else {
+        expense += t['jumlah'];
+      }
+    }
+
+    setState(() {
+      _listSaldo = results[0] as List<Saldo>;
+      _listTabungan = results[1] as List<Tabungan>;
+      _latestTransaksi = allTransaksi.take(3).toList();
+      _totalPemasukan = income;
+      _totalPengeluaran = expense;
+      _isLoading = false;
+    });
+  }
+
+  String _formatIDR(dynamic amount) {
+    return NumberFormat.currency(
+            locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
+        .format(amount);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Dashboard"), elevation: 0),
+      body: RefreshIndicator(
+        onRefresh: _loadDashboardData,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. SALDO SLIDER
+              const Text("Dompet Saya",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 120,
+                child: _listSaldo.isEmpty
+                    ? _buildEmptyState("Belum ada saldo")
+                    : PageView.builder(
+                        controller: PageController(viewportFraction: 0.9),
+                        itemCount: _listSaldo.length,
+                        itemBuilder: (context, index) {
+                          final saldo = _listSaldo[index];
+                          return Card(
+                            color: theme.colorScheme.primary,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15)),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(saldo.nama,
+                                      style: const TextStyle(
+                                          color: Colors.white70)),
+                                  const Spacer(),
+                                  Text(_formatIDR(saldo.total),
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+
+              const SizedBox(height: 25),
+
+              // 2. RINGKASAN PEMASUKAN & PENGELUARAN
+              Row(
+                children: [
+                  _buildSummaryCard("Pemasukan", _totalPemasukan, Colors.green,
+                      Icons.arrow_downward),
+                  const SizedBox(width: 10),
+                  _buildSummaryCard("Pengeluaran", _totalPengeluaran,
+                      Colors.red, Icons.arrow_upward),
+                ],
+              ),
+
+              const SizedBox(height: 25),
+
+              // 3. 3 TRANSAKSI TERBARU
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Transaksi Terbaru",
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  TextButton(onPressed: () {}, child: const Text("Lihat Semua"))
+                ],
+              ),
+              _latestTransaksi.isEmpty
+                  ? _buildEmptyState("Belum ada transaksi")
+                  : Column(
+                      children: _latestTransaksi
+                          .map((t) => ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: CircleAvatar(
+                                  backgroundColor: t['tipe'] == 'PEMASUKAN'
+                                      ? Colors.green.withOpacity(0.1)
+                                      : Colors.red.withOpacity(0.1),
+                                  child: Icon(
+                                      t['tipe'] == 'PEMASUKAN'
+                                          ? Icons.add
+                                          : Icons.remove,
+                                      color: t['tipe'] == 'PEMASUKAN'
+                                          ? Colors.green
+                                          : Colors.red),
+                                ),
+                                title: Text(t['nama_kategori']),
+                                subtitle: Text(t['tanggal'] ?? ''),
+                                trailing: Text(_formatIDR(t['jumlah']),
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: t['tipe'] == 'PEMASUKAN'
+                                            ? Colors.green
+                                            : Colors.red)),
+                              ))
+                          .toList(),
+                    ),
+
+              const SizedBox(height: 25),
+
+              // 4. GOAL SLIDER (Tabungan)
+              const Text("Target Tabungan",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 140,
+                child: _listTabungan.isEmpty
+                    ? _buildEmptyState("Belum ada target")
+                    : PageView.builder(
+                        controller: PageController(viewportFraction: 0.9),
+                        itemCount: _listTabungan.length,
+                        itemBuilder: (context, index) {
+                          final goal = _listTabungan[index];
+                          double progress = goal.jumlah / goal.targetJumlah;
+                          return Card(
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15)),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(goal.nama,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 10),
+                                  LinearProgressIndicator(
+                                    value: progress > 1 ? 1 : progress,
+                                    backgroundColor: Colors.grey[200],
+                                    color: theme.colorScheme.secondary,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                      "${(progress * 100).toStringAsFixed(1)}% Terkumpul",
+                                      style: const TextStyle(fontSize: 12)),
+                                  const Spacer(),
+                                  Text(
+                                      "${_formatIDR(goal.jumlah)} / ${_formatIDR(goal.targetJumlah)}",
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              const SizedBox(height: 50),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(
+      String title, double amount, Color color, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 8),
+            Text(title, style: TextStyle(color: color, fontSize: 12)),
+            const SizedBox(height: 4),
+            FittedBox(
+                child: Text(_formatIDR(amount),
+                    style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String msg) {
+    return Center(child: Text(msg, style: const TextStyle(color: Colors.grey)));
+  }
+}

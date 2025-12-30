@@ -4,7 +4,6 @@ class Tabungan {
   final String nama;
   final double targetJumlah;
   final double jumlah;
-  final String? tenggatWaktu;
 
   Tabungan({
     this.tabunganId,
@@ -12,7 +11,6 @@ class Tabungan {
     required this.nama,
     required this.targetJumlah,
     this.jumlah = 0,
-    this.tenggatWaktu,
   });
 
   Map<String, dynamic> toMap() {
@@ -22,7 +20,6 @@ class Tabungan {
       'nama': nama,
       'target_jumlah': targetJumlah,
       'jumlah': jumlah,
-      'tenggat_waktu': tenggatWaktu,
     };
   }
 
@@ -33,7 +30,6 @@ class Tabungan {
       nama: map['nama'],
       targetJumlah: map['target_jumlah'],
       jumlah: map['jumlah'] ?? 0,
-      tenggatWaktu: map['tenggat_waktu'],
     );
   }
 }

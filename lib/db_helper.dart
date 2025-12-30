@@ -4,8 +4,7 @@ import 'package:path/path.dart';
 class DBHelper {
   static Database? _database;
 
-  // INIT DATABASE
-
+  // Inisialisasi Database
   static Future<Database> db() async {
     if (_database != null) return _database!;
     _database = await _initDB();
@@ -20,62 +19,59 @@ class DBHelper {
       path,
       version: 1,
       onCreate: _createTables,
+      // Mengaktifkan dukungan foreign key
+      onConfigure: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
     );
   }
 
-  // CREATE TABLES
+  // Membuat Tabel-Tabel
   static Future<void> _createTables(Database db, int version) async {
-    // KATEGORI
+    // 1. TABEL KATEGORI
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS kategori (
+      CREATE TABLE kategori (
         kategori_id INTEGER PRIMARY KEY AUTOINCREMENT,
         nama TEXT NOT NULL,
-        tipe TEXT CHECK(tipe IN ('PEMASUKAN','PENGELUARAN')),
-      );
+        tipe TEXT CHECK(tipe IN ('PEMASUKAN', 'PENGELUARAN'))
+      )
     ''');
 
-    // TABUNGAN
+    // 2. TABEL TABUNGAN
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS tabungan (
+      CREATE TABLE tabungan (
         tabungan_id INTEGER PRIMARY KEY AUTOINCREMENT,
         nama TEXT NOT NULL,
         target_jumlah REAL NOT NULL,
         jumlah REAL DEFAULT 0,
-        tenggat_waktu TEXT
-      );
+      )
     ''');
 
-    // SALDO
+    // 3. TABEL SALDO
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS saldo (
+      CREATE TABLE saldo (
         saldo_id INTEGER PRIMARY KEY AUTOINCREMENT,
         nama TEXT NOT NULL,
-        total INTEGER DEFAULT 0,
-        );
+        total INTEGER DEFAULT 0
+      )
     ''');
 
-    //  TRANSAKSI
+    // 4. TABEL TRANSAKSI
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS transaksi (
+      CREATE TABLE transaksi (
         transaksi_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        saldo_id INTEGER NOT_NULL,
-        kategori_id INTEGER NOT_NULL,
-        tabungan_id INTEGER ,
+        saldo_id INTEGER NOT NULL,
+        kategori_id INTEGER NOT NULL,
+        tabungan_id INTEGER,
         jumlah REAL NOT NULL,
         tanggal TEXT DEFAULT (datetime('now','localtime')),
-        FOREIGN KEY (saldo_id)
-          REFERENCES saldo (saldo_id)
-          ON UPDATE NO ACTION
-          ON DELETE NO ACTION,
-        FOREIGN KEY (kategori_id)
-          REFERENCES kategori (kategori_id)
-          ON UPDATE NO ACTION
-          ON DELETE NO ACTION,
-        FOREIGN KEY (tabungan_id)
-          REFERENCES tabungan (tabungan_id)
-          ON UPDATE NO ACTION
-          ON DELETE NO ACTION
-      );
+        FOREIGN KEY (saldo_id) REFERENCES saldo (saldo_id) 
+          ON DELETE CASCADE ON UPDATE NO ACTION,
+        FOREIGN KEY (kategori_id) REFERENCES kategori (kategori_id) 
+          ON DELETE CASCADE ON UPDATE NO ACTION,
+        FOREIGN KEY (tabungan_id) REFERENCES tabungan (tabungan_id) 
+          ON DELETE SET NULL ON UPDATE NO ACTION
+      )
     ''');
   }
 }
