@@ -3,13 +3,13 @@ import '../models/saldo.dart';
 
 class SaldoService {
   // CREATE
-  Future<int> insertSaldo(Saldo saldo) async {
+  static Future<int> insertSaldo(Saldo saldo) async {
     final db = await DBHelper.db();
     return await db.insert('saldo', saldo.toMap());
   }
 
   // READ
-  Future<List<Saldo>> getAllSaldo() async {
+  static Future<List<Saldo>> getAllSaldo() async {
     final db = await DBHelper.db();
     final result = await db.query('saldo');
 
@@ -17,7 +17,7 @@ class SaldoService {
   }
 
   // UPDATE
-  Future<int> updateSaldo(Saldo saldo) async {
+  static Future<int> updateSaldo(Saldo saldo) async {
     final db = await DBHelper.db();
     return await db.update(
       'saldo',
@@ -28,7 +28,7 @@ class SaldoService {
   }
 
   // DELETE
-  Future<int> deleteSaldo(int id) async {
+  static Future<int> deleteSaldo(int id) async {
     final db = await DBHelper.db();
     return await db.delete(
       'saldo',

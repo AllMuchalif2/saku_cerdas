@@ -5,11 +5,6 @@ import 'package:saku_cerdas/pages/transaksi_page.dart';
 import 'package:saku_cerdas/pages/tambah_transaksi_page.dart';
 import 'package:saku_cerdas/pages/tabungan_page.dart';
 import 'package:saku_cerdas/pages/menu_page.dart';
-// import 'ringkasan.dart';
-// import 'transaksi.dart';
-// import 'tambah_transaksi.dart';
-// import 'tabungan.dart';
-// import 'menu_lainnya.dart';
 
 class NavigasiPage extends StatefulWidget {
   const NavigasiPage({Key? key}) : super(key: key);
@@ -28,7 +23,6 @@ class _NavigasiPageState extends State<NavigasiPage> {
     const TambahTransaksiPage(),
     const TabunganPage(),
     const MenuPage(),
-    // const TambahTransaksiScreen(),
   ];
 
   @override
@@ -45,7 +39,7 @@ class _NavigasiPageState extends State<NavigasiPage> {
             _selectedIndex = index;
           });
         },
-        selectedItemColor: Colors.blueAccent,
+        selectedItemColor: Colors.teal,
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
@@ -61,7 +55,7 @@ class _NavigasiPageState extends State<NavigasiPage> {
             label: 'Transaksi',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle, size: 40, color: Colors.blueAccent),
+            icon: Icon(Icons.add_circle, size: 40, color: Colors.teal),
             label: 'Tambah',
           ),
           BottomNavigationBarItem(

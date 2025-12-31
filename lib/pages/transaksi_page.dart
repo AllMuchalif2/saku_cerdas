@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:saku_cerdas/services/transaksi_services.dart';
+import 'package:saku_cerdas/services/transaksi_service.dart';
+import 'package:saku_cerdas/pages/tambah_transaksi_page.dart';
 
 class TransaksiPage extends StatefulWidget {
   const TransaksiPage({super.key});
@@ -10,11 +11,15 @@ class TransaksiPage extends StatefulWidget {
 }
 
 class _TransaksiPageState extends State<TransaksiPage> {
-  // Menggunakan double karena di ERD bertipe REAL
-  String formatRupiah(double nominal) {
+  // PERBAIKAN: Gunakan 'num' agar bisa menerima int maupun double
+  String formatRupiah(num nominal) {
     return NumberFormat.currency(
             locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
         .format(nominal);
+  }
+
+  void _refreshData() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -27,6 +32,7 @@ class _TransaksiPageState extends State<TransaksiPage> {
         foregroundColor: Colors.white,
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
+        // FutureBuilder akan memanggil ulang fungsi ini setiap kali setState dipanggil
         future: TransaksiService.getAllTransaksi(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -34,7 +40,13 @@ class _TransaksiPageState extends State<TransaksiPage> {
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Terjadi kesalahan: ${snapshot.error}'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Text('Terjadi kesalahan: ${snapshot.error}',
+                    textAlign: TextAlign.center),
+              ),
+            );
           }
 
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -48,64 +60,113 @@ class _TransaksiPageState extends State<TransaksiPage> {
             itemCount: listTransaksi.length,
             itemBuilder: (context, index) {
               final item = listTransaksi[index];
+              try {
+                // PROTEKSI DATA NULL & TYPE CASTING
+                final String tipeRaw =
+                    item['tipe']?.toString() ?? 'PENGELUARAN';
+                final String tipe = tipeRaw.toUpperCase();
+                final bool isPemasukan = tipe == 'PEMASUKAN';
 
-              // Tipe diambil dari tabel kategori hasil JOIN di service
-              final String tipe =
-                  item['tipe']?.toString().toUpperCase() ?? 'PENGELUARAN';
-              final bool isPemasukan = tipe == 'PEMASUKAN';
+                final String namaSaldo = item['nama_saldo'] ?? 'Saldo';
+                final String namaKategori = item['nama_kategori'] ?? 'Kategori';
 
-              return Card(
-                elevation: 3,
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor:
-                        isPemasukan ? Colors.green[100] : Colors.red[100],
-                    child: Icon(
-                      isPemasukan ? Icons.arrow_downward : Icons.arrow_upward,
-                      color: isPemasukan ? Colors.green : Colors.red,
+                // PERBAIKAN: Konversi paksa ke double agar tidak error subtype
+                final double jumlah =
+                    (item['jumlah'] as num?)?.toDouble() ?? 0.0;
+
+                return Card(
+                  elevation: 3,
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor:
+                          isPemasukan ? Colors.green[100] : Colors.red[100],
+                      child: Icon(
+                        isPemasukan ? Icons.arrow_downward : Icons.arrow_upward,
+                        color: isPemasukan ? Colors.green : Colors.red,
+                      ),
                     ),
-                  ),
-                  title: Text(
-                    item['nama_kategori'] ?? 'Tanpa Kategori',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(item['tanggal'] ?? '-'),
-                      if (item['nama_tabungan'] != null)
-                        Text(
-                          "Tabungan: ${item['nama_tabungan']}",
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.blueGrey),
-                        ),
-                    ],
-                  ),
-                  trailing: Text(
-                    (isPemasukan ? "+ " : "- ") +
-                        formatRupiah((item['jumlah'] as num).toDouble()),
-                    style: TextStyle(
-                      color: isPemasukan ? Colors.green : Colors.red,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                    title: Text(
+                      namaKategori,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("${item['tanggal'] ?? '-'} • $namaSaldo",
+                            style: const TextStyle(fontSize: 12)),
+
+                        // Cek apakah ada data tabungan (Join berhasil)
+                        if (item['nama_tabungan'] != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                  color: Colors.blue[50],
+                                  borderRadius: BorderRadius.circular(4)),
+                              child: Text(
+                                "🎯 Tabungan: ${item['nama_tabungan']}",
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    trailing: Text(
+                      (isPemasukan ? "+ " : "- ") + formatRupiah(jumlah),
+                      style: TextStyle(
+                        color: isPemasukan ? Colors.green : Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    onLongPress: () {
+                      _konfirmasiHapus(item['transaksi_id']);
+                    },
                   ),
-                  onLongPress: () {
-                    // Gunakan transaksi_id sesuai ERD
-                    _konfirmasiHapus(item['transaksi_id']);
-                  },
-                ),
-              );
+                );
+              } catch (e, s) {
+                debugPrint('Error building list item: $e');
+                debugPrint('$s');
+                return Card(
+                  color: Colors.red[50],
+                  child: ListTile(
+                    title: Text('Error rendering transaksi #$index'),
+                    subtitle: Text(e.toString()),
+                  ),
+                );
+              }
             },
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Navigasi ke halaman tambah transaksi
+        onPressed: () async {
+          // Navigasi dan tunggu kembalian dari pop(context, true)
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const TambahTransaksiPage()),
+          );
+          debugPrint('TambahTransaksi returned: $result');
+
+          // Jika result true, panggil _refreshData untuk trigger FutureBuilder
+          if (result == true) {
+            _refreshData();
+            // Tampilkan notifikasi sukses menggunakan konteks pemanggil (aman)
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Transaksi Berhasil Disimpan')),
+              );
+            }
+          }
         },
         backgroundColor: Colors.blueAccent,
         child: const Icon(Icons.add, color: Colors.white),
@@ -118,7 +179,8 @@ class _TransaksiPageState extends State<TransaksiPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Hapus Transaksi?'),
-        content: const Text('Saldo akan otomatis disesuaikan kembali.'),
+        content: const Text(
+            'Menghapus riwayat akan mengupdate saldo kembali seperti semula.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -126,10 +188,21 @@ class _TransaksiPageState extends State<TransaksiPage> {
           ),
           ElevatedButton(
             onPressed: () async {
-              await TransaksiService.deleteTransaksi(id);
-              if (!mounted) return;
-              Navigator.pop(context);
-              setState(() {}); // Segarkan tampilan
+              try {
+                await TransaksiService.deleteTransaksi(id);
+                if (!mounted) return;
+                Navigator.pop(context); // Tutup dialog
+                _refreshData(); // Refresh list
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Transaksi dihapus')),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Gagal menghapus: $e')),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Hapus', style: TextStyle(color: Colors.white)),

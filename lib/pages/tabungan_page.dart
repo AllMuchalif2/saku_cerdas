@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/tabungan.dart';
-import '../services/tabungan_services.dart'; // Pastikan nama file sesuai
+import 'package:saku_cerdas/models/tabungan.dart';
+import 'package:saku_cerdas/services/tabungan_service.dart';
 
 class TabunganPage extends StatefulWidget {
   const TabunganPage({super.key});
@@ -10,9 +10,6 @@ class TabunganPage extends StatefulWidget {
 }
 
 class _TabunganPageState extends State<TabunganPage> {
-  // Instance Service
-  final TabunganService _tabunganService = TabunganService();
-
   // Controller untuk Form
   final TextEditingController _namaController = TextEditingController();
   final TextEditingController _targetController = TextEditingController();
@@ -46,7 +43,7 @@ class _TabunganPageState extends State<TabunganPage> {
           targetJumlah: target,
           jumlah: jumlah,
         );
-        await _tabunganService.updateTabungan(updateTabungan);
+        await TabunganService.updateTabungan(updateTabungan);
       } else {
         // INSERT DATA BARU
         Tabungan newTabungan = Tabungan(
@@ -54,7 +51,7 @@ class _TabunganPageState extends State<TabunganPage> {
           targetJumlah: target,
           jumlah: jumlah,
         );
-        await _tabunganService.insertTabungan(newTabungan);
+        await TabunganService.insertTabungan(newTabungan);
       }
 
       if (!mounted) return;
@@ -65,7 +62,7 @@ class _TabunganPageState extends State<TabunganPage> {
 
   // Fungsi Hapus dari Database
   Future<void> _hapusTabungan(int id) async {
-    await _tabunganService.deleteTabungan(id);
+    await TabunganService.deleteTabungan(id);
     if (!mounted) return;
     Navigator.pop(context); // Tutup Dialog Konfirmasi
     _refreshData(); // Refresh List
@@ -162,7 +159,7 @@ class _TabunganPageState extends State<TabunganPage> {
       ),
       // Menggunakan FutureBuilder untuk mengambil data dari Database
       body: FutureBuilder<List<Tabungan>>(
-        future: _tabunganService.getAllTabungan(),
+        future: TabunganService.getAllTabungan(),
         builder: (context, snapshot) {
           // 1. Loading State
           if (snapshot.connectionState == ConnectionState.waiting) {

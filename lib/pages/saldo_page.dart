@@ -14,8 +14,6 @@ class _SaldoPageState extends State<SaldoPage> {
   final _namaController = TextEditingController();
   final _totalController = TextEditingController();
 
-  final SaldoService _service = SaldoService();
-
   void simpan() async {
     if (_formKey.currentState!.validate()) {
       final saldo = Saldo(
@@ -23,7 +21,7 @@ class _SaldoPageState extends State<SaldoPage> {
         total: int.parse(_totalController.text),
       );
 
-      await _service.insertSaldo(saldo);
+      await SaldoService.insertSaldo(saldo);
       Navigator.pop(context);
     }
   }
@@ -31,7 +29,11 @@ class _SaldoPageState extends State<SaldoPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tambah Saldo')),
+      appBar: AppBar(
+        title: const Text('Tambah Saldo'),
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -53,6 +55,10 @@ class _SaldoPageState extends State<SaldoPage> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: simpan,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                ),
                 child: const Text('Simpan'),
               )
             ],

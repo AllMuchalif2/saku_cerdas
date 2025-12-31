@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:saku_cerdas/services/kategori_services.dart';
+import 'package:saku_cerdas/services/kategori_service.dart';
 import 'package:saku_cerdas/services/saldo_service.dart';
 
 // Tambahkan import halaman tujuan di sini
@@ -14,9 +14,6 @@ class MenuPage extends StatefulWidget {
 }
 
 class _MenuPageState extends State<MenuPage> {
-  final KategoriService _kategoriService = KategoriService();
-  final SaldoService _saldoService = SaldoService();
-
   int _countKategori = 0;
   int _countSaldo = 0;
   bool _isLoading = true;
@@ -29,8 +26,8 @@ class _MenuPageState extends State<MenuPage> {
 
   Future<void> _loadCounts() async {
     try {
-      final kategoriList = await _kategoriService.getAllKategori();
-      final saldoList = await _saldoService.getAllSaldo();
+      final kategoriList = await KategoriService.getAllKategori();
+      final saldoList = await SaldoService.getAllSaldo();
 
       if (mounted) {
         setState(() {
@@ -49,13 +46,15 @@ class _MenuPageState extends State<MenuPage> {
 
   @override
   Widget build(BuildContext context) {
-    const colorPrimary = Color(0xFF4300FF);
-    const colorSecondary = Color(0xFF0065F8);
+    const colorPrimary = Colors.teal;
+    const colorSecondary = Colors.teal;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text("Menu Lainnya"),
         centerTitle: true,
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

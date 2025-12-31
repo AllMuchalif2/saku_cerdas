@@ -4,8 +4,8 @@ import 'package:saku_cerdas/models/saldo.dart';
 import 'package:saku_cerdas/models/tabungan.dart';
 
 import 'package:saku_cerdas/services/saldo_service.dart';
-import 'package:saku_cerdas/services/tabungan_services.dart';
-import 'package:saku_cerdas/services/transaksi_services.dart';
+import 'package:saku_cerdas/services/tabungan_service.dart';
+import 'package:saku_cerdas/services/transaksi_service.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({Key? key}) : super(key: key);
@@ -15,9 +15,6 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  final SaldoService _saldoService = SaldoService();
-  final TabunganService _tabunganService = TabunganService();
-
   List<Saldo> _listSaldo = [];
   List<Tabungan> _listTabungan = [];
   List<Map<String, dynamic>> _latestTransaksi = [];
@@ -36,8 +33,8 @@ class _DashboardPageState extends State<DashboardPage> {
 
     // Ambil data secara paralel
     final results = await Future.wait([
-      _saldoService.getAllSaldo(),
-      _tabunganService.getAllTabungan(),
+      SaldoService.getAllSaldo(),
+      TabunganService.getAllTabungan(),
       TransaksiService.getAllTransaksi(),
     ]);
 
@@ -79,7 +76,12 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Dashboard"), elevation: 0),
+      appBar: AppBar(
+        title: const Text("Dashboard"),
+        elevation: 0,
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
+      ),
       body: RefreshIndicator(
         onRefresh: _loadDashboardData,
         child: SingleChildScrollView(
@@ -101,7 +103,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         itemBuilder: (context, index) {
                           final saldo = _listSaldo[index];
                           return Card(
-                            color: theme.colorScheme.primary,
+                            color: Colors.teal,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(15)),
                             child: Padding(
@@ -148,7 +150,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   const Text("Transaksi Terbaru",
                       style:
                           TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  TextButton(onPressed: () {}, child: const Text("Lihat Semua"))
+                  TextButton(onPressed: () {}, child: const Text("Lihat Semua", style: TextStyle(color: Colors.teal)))
                 ],
               ),
               _latestTransaksi.isEmpty
@@ -212,7 +214,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                   LinearProgressIndicator(
                                     value: progress > 1 ? 1 : progress,
                                     backgroundColor: Colors.grey[200],
-                                    color: theme.colorScheme.secondary,
+                                    color: Colors.teal,
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
