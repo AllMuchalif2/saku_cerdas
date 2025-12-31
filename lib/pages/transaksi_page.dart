@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:saku_cerdas/services/transaksi_service.dart';
-import 'package:saku_cerdas/pages/tambah_transaksi_page.dart';
+import '../services/transaksi_service.dart';
+import './tambah_transaksi_page.dart';
 
 class TransaksiPage extends StatefulWidget {
   const TransaksiPage({super.key});
@@ -28,7 +28,7 @@ class _TransaksiPageState extends State<TransaksiPage> {
       appBar: AppBar(
         title: const Text('Riwayat Transaksi'),
         centerTitle: true,
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
@@ -133,8 +133,7 @@ class _TransaksiPageState extends State<TransaksiPage> {
                   ),
                 );
               } catch (e, s) {
-                debugPrint('Error building list item: $e');
-                debugPrint('$s');
+                // error building list item (silently handled)
                 return Card(
                   color: Colors.red[50],
                   child: ListTile(
@@ -155,7 +154,7 @@ class _TransaksiPageState extends State<TransaksiPage> {
             MaterialPageRoute(
                 builder: (context) => const TambahTransaksiPage()),
           );
-          debugPrint('TambahTransaksi returned: $result');
+          // result returned from TambahTransaksiPage
 
           // Jika result true, panggil _refreshData untuk trigger FutureBuilder
           if (result == true) {
@@ -168,7 +167,7 @@ class _TransaksiPageState extends State<TransaksiPage> {
             }
           }
         },
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: Colors.teal,
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );

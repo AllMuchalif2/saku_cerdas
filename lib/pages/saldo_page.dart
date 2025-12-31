@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:saku_cerdas/models/saldo.dart';
-import 'package:saku_cerdas/services/saldo_service.dart';
+import '../models/saldo.dart';
+import '../services/saldo_service.dart';
 
 class SaldoPage extends StatefulWidget {
   const SaldoPage({super.key});

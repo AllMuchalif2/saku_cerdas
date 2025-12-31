@@ -19,7 +19,6 @@ class DBHelper {
       path,
       version: 1,
       onCreate: _createTables,
-      // Mengaktifkan dukungan foreign key
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
@@ -32,8 +31,9 @@ class DBHelper {
     await db.execute('''
       CREATE TABLE kategori (
         kategori_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nama TEXT NOT NULL,
-        tipe TEXT CHECK(tipe IN ('PEMASUKAN', 'PENGELUARAN'))
+        nama TEXT NOT NULL UNIQUE,
+        tipe TEXT CHECK(tipe IN ('PEMASUKAN', 'PENGELUARAN')),
+        is_deleted INTEGER DEFAULT 0
       )
     ''');
 
@@ -45,7 +45,7 @@ class DBHelper {
         target_jumlah REAL NOT NULL,
         jumlah REAL DEFAULT 0
       ) 
-    '''); // <-- Koma setelah DEFAULT 0 sudah dihapus
+    ''');
 
     // 3. TABEL SALDO
     await db.execute('''
@@ -60,6 +60,7 @@ class DBHelper {
     await db.execute('''
       CREATE TABLE transaksi (
         transaksi_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nama TEXT NOT NULL,
         saldo_id INTEGER NOT NULL,
         kategori_id INTEGER NOT NULL,
         tabungan_id INTEGER,

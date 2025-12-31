@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:saku_cerdas/models/tabungan.dart';
-import 'package:saku_cerdas/services/tabungan_service.dart';
+import '../models/tabungan.dart';
+import '../services/tabungan_service.dart';
 
 class TabunganPage extends StatefulWidget {
   const TabunganPage({super.key});

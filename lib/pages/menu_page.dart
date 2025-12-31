@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:saku_cerdas/services/kategori_service.dart';
-import 'package:saku_cerdas/services/saldo_service.dart';
+import '../services/kategori_service.dart';
+import '../services/saldo_service.dart';
 
 // Tambahkan import halaman tujuan di sini
-import 'package:saku_cerdas/pages/kategori_page.dart';
-import 'package:saku_cerdas/pages/saldo_page.dart';
+import './kategori_page.dart';
+import './saldo_page.dart';
 
 class MenuPage extends StatefulWidget {
   const MenuPage({Key? key}) : super(key: key);

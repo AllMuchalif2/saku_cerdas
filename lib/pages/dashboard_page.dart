@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:saku_cerdas/models/saldo.dart';
-import 'package:saku_cerdas/models/tabungan.dart';
 
-import 'package:saku_cerdas/services/saldo_service.dart';
-import 'package:saku_cerdas/services/tabungan_service.dart';
-import 'package:saku_cerdas/services/transaksi_service.dart';
+import '../models/saldo.dart';
+import '../models/tabungan.dart';
+
+import '../services/saldo_service.dart';
+import '../services/tabungan_service.dart';
+import '../services/transaksi_service.dart';
+
+import './saldo_page.dart';
+import './tabungan_page.dart';
+import './transaksi_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({Key? key}) : super(key: key);
@@ -21,6 +26,7 @@ class _DashboardPageState extends State<DashboardPage> {
   double _totalPemasukan = 0;
   double _totalPengeluaran = 0;
   bool _isLoading = true;
+  bool _isSaldoVisible = true;
 
   @override
   void initState() {
@@ -51,14 +57,16 @@ class _DashboardPageState extends State<DashboardPage> {
       }
     }
 
-    setState(() {
-      _listSaldo = results[0] as List<Saldo>;
-      _listTabungan = results[1] as List<Tabungan>;
-      _latestTransaksi = allTransaksi.take(3).toList();
-      _totalPemasukan = income;
-      _totalPengeluaran = expense;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _listSaldo = results[0] as List<Saldo>;
+        _listTabungan = results[1] as List<Tabungan>;
+        _latestTransaksi = allTransaksi.take(3).toList();
+        _totalPemasukan = income;
+        _totalPengeluaran = expense;
+        _isLoading = false;
+      });
+    }
   }
 
   String _formatIDR(dynamic amount) {
@@ -69,8 +77,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -90,8 +96,22 @@ class _DashboardPageState extends State<DashboardPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. SALDO SLIDER
-              const Text("Dompet Saya",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Dompet Saya",
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  TextButton(
+                    onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const SaldoPage())),
+                    child: const Text("Lihat Semua",
+                        style: TextStyle(color: Colors.teal)),
+                  )
+                ],
+              ),
               const SizedBox(height: 10),
               SizedBox(
                 height: 120,
@@ -115,11 +135,33 @@ class _DashboardPageState extends State<DashboardPage> {
                                       style: const TextStyle(
                                           color: Colors.white70)),
                                   const Spacer(),
-                                  Text(_formatIDR(saldo.total),
-                                      style: const TextStyle(
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                          _isSaldoVisible
+                                              ? _formatIDR(saldo.total)
+                                              : 'Rp •••••••••',
+                                          style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.bold)),
+                                      IconButton(
+                                        icon: Icon(
+                                          _isSaldoVisible
+                                              ? Icons.visibility_off
+                                              : Icons.visibility,
                                           color: Colors.white,
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.bold)),
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            _isSaldoVisible = !_isSaldoVisible;
+                                          });
+                                        },
+                                      )
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
@@ -150,7 +192,13 @@ class _DashboardPageState extends State<DashboardPage> {
                   const Text("Transaksi Terbaru",
                       style:
                           TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  TextButton(onPressed: () {}, child: const Text("Lihat Semua", style: TextStyle(color: Colors.teal)))
+                  TextButton(
+                      onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const TransaksiPage())),
+                      child: const Text("Lihat Semua",
+                          style: TextStyle(color: Colors.teal)))
                 ],
               ),
               _latestTransaksi.isEmpty
@@ -186,8 +234,22 @@ class _DashboardPageState extends State<DashboardPage> {
               const SizedBox(height: 25),
 
               // 4. GOAL SLIDER (Tabungan)
-              const Text("Target Tabungan",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Target Tabungan",
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  TextButton(
+                    onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const TabunganPage())),
+                    child: const Text("Lihat Semua",
+                        style: TextStyle(color: Colors.teal)),
+                  )
+                ],
+              ),
               const SizedBox(height: 10),
               SizedBox(
                 height: 140,
@@ -199,6 +261,8 @@ class _DashboardPageState extends State<DashboardPage> {
                         itemBuilder: (context, index) {
                           final goal = _listTabungan[index];
                           double progress = goal.jumlah / goal.targetJumlah;
+                          if (goal.targetJumlah == 0) progress = 1;
+
                           return Card(
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(15)),

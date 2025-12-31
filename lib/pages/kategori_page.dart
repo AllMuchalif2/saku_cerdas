@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:saku_cerdas/models/kategori.dart';
-import 'package:saku_cerdas/services/kategori_service.dart';
+import '../models/kategori.dart';
+import '../services/kategori_service.dart';
 
 class KategoriPage extends StatefulWidget {
   const KategoriPage({Key? key}) : super(key: key);
@@ -10,6 +10,7 @@ class KategoriPage extends StatefulWidget {
 }
 
 class _KategoriPageState extends State<KategoriPage> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _namaController = TextEditingController();
   String _selectedTipe = 'PENGELUARAN';
 
@@ -32,28 +33,49 @@ class _KategoriPageState extends State<KategoriPage> {
   }
 
   Future<void> _simpanKategori({KategoriModel? kategori}) async {
-    final String nama = _namaController.text;
-    if (nama.isEmpty) return;
-
-    if (kategori == null) {
-      // Tambah baru
-      await KategoriService.addKategori(
-        KategoriModel(nama: nama, tipe: _selectedTipe),
-      );
-    } else {
-      // Update
-      await KategoriService.updateKategori(
-        KategoriModel(
-          kategoriId: kategori.kategoriId,
-          nama: nama,
-          tipe: _selectedTipe,
-        ),
-      );
+    if (!_formKey.currentState!.validate()) {
+      return;
     }
 
-    if (!mounted) return;
-    Navigator.of(context).pop(); // Tutup dialog
-    _refreshCategories(); // Refresh list
+    final String nama = _namaController.text.trim();
+    final bool isEdit = kategori != null;
+
+    try {
+      if (!isEdit) {
+        // Tambah baru
+        await KategoriService.addKategori(
+          KategoriModel(nama: nama, tipe: _selectedTipe),
+        );
+      } else {
+        // Update
+        await KategoriService.updateKategori(
+          KategoriModel(
+            kategoriId: kategori.kategoriId,
+            nama: nama,
+            tipe: _selectedTipe,
+          ),
+        );
+      }
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      _refreshCategories();
+
+      // Tampilkan pesan sukses
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isEdit
+              ? 'Kategori berhasil diubah.'
+              : 'Kategori berhasil ditambahkan.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      // Kesalahan umum (misal: masalah koneksi db)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $e')),
+      );
+    }
   }
 
   void _showFormDialog({KategoriModel? kategori}) {
@@ -70,43 +92,89 @@ class _KategoriPageState extends State<KategoriPage> {
     showDialog(
       context: context,
       builder: (context) {
-        // Gunakan StatefulBuilder agar Dropdown bisa update state di dalam dialog
         return AlertDialog(
-          title: Text(isEdit ? 'Edit Kategori' : 'Tambah Kategori'),
+          backgroundColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: Text(
+            isEdit ? 'Edit Kategori' : 'Tambah Kategori',
+            style: const TextStyle(
+                color: Colors.black, fontWeight: FontWeight.bold),
+          ),
           content: StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) {
-              return SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: _namaController,
-                      decoration:
-                          const InputDecoration(labelText: 'Nama Kategori'),
-                      autofocus: true,
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _selectedTipe,
-                      decoration: const InputDecoration(
-                        labelText: 'Tipe Transaksi',
-                        border: OutlineInputBorder(),
+              return Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: _namaController,
+                        style: const TextStyle(color: Colors.black),
+                        decoration: const InputDecoration(
+                          labelText: 'Nama Kategori',
+                          labelStyle: TextStyle(color: Colors.black54),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.teal),
+                          ),
+                        ),
+                        autofocus: true,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Nama kategori tidak boleh kosong';
+                          }
+                          final trimmedValue = value.trim();
+
+                          final isDuplicate = _categories.any(
+                            (cat) =>
+                                cat.nama.toLowerCase() ==
+                                trimmedValue.toLowerCase(),
+                          );
+
+                          if (isEdit) {
+                            if (kategori.nama.toLowerCase() !=
+                                    trimmedValue.toLowerCase() &&
+                                isDuplicate) {
+                              return 'Nama kategori sudah ada.';
+                            }
+                          } else {
+                            if (isDuplicate) {
+                              return 'Nama kategori sudah ada.';
+                            }
+                          }
+
+                          return null;
+                        },
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                            value: 'PENGELUARAN', child: Text('PENGELUARAN')),
-                        DropdownMenuItem(
-                            value: 'PEMASUKAN', child: Text('PEMASUKAN')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _selectedTipe = val;
-                          });
-                        }
-                      },
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: _selectedTipe,
+                        style: const TextStyle(color: Colors.black),
+                        decoration: const InputDecoration(
+                          labelText: 'Tipe Transaksi',
+                          labelStyle: TextStyle(color: Colors.black54),
+                          border: OutlineInputBorder(),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.teal),
+                          ),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'PENGELUARAN', child: Text('PENGELUARAN')),
+                          DropdownMenuItem(
+                              value: 'PEMASUKAN', child: Text('PEMASUKAN')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _selectedTipe = val;
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -114,13 +182,12 @@ class _KategoriPageState extends State<KategoriPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
+              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white, // Sesuai permintaan
-                foregroundColor: Colors.teal, // Agar teks terlihat
-                side: const BorderSide(color: Colors.teal), // Border agar tombol terlihat
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
               ),
               onPressed: () => _simpanKategori(kategori: kategori),
               child: const Text('Simpan'),
@@ -137,7 +204,7 @@ class _KategoriPageState extends State<KategoriPage> {
       builder: (ctx) => AlertDialog(
         title: const Text("Hapus Kategori?"),
         content: Text(
-            "Anda yakin ingin menghapus '${kategori.nama}'? Transaksi dengan kategori ini tidak akan terhapus namun mungkin akan kehilangan relasinya."),
+            "Anda yakin ingin menghapus '${kategori.nama}'? Ini tidak akan menghapus data transaksi yang sudah ada."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -145,10 +212,17 @@ class _KategoriPageState extends State<KategoriPage> {
           ),
           TextButton(
             onPressed: () async {
-              await KategoriService.deleteKategori(kategori.kategoriId!);
+              await KategoriService.softDeleteKategori(kategori.kategoriId!);
               if (!mounted) return;
               Navigator.pop(ctx);
               _refreshCategories();
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Kategori berhasil dihapus.'),
+                  backgroundColor: Colors.green,
+                ),
+              );
             },
             child: const Text("Hapus", style: TextStyle(color: Colors.red)),
           ),
@@ -164,61 +238,65 @@ class _KategoriPageState extends State<KategoriPage> {
         title: const Text("Manajemen Kategori"),
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-              onPressed: _refreshCategories, icon: const Icon(Icons.refresh))
-        ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _categories.isEmpty
-              ? const Center(child: Text("Belum ada kategori."))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _categories.length,
-                  itemBuilder: (context, index) {
-                    final cat = _categories[index];
-                    final isPemasukan = cat.tipe == 'PEMASUKAN';
+      body: RefreshIndicator(
+        onRefresh: _refreshCategories,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _categories.isEmpty
+                ? const Center(child: Text("Belum ada kategori."))
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _categories.length,
+                    itemBuilder: (context, index) {
+                      final cat = _categories[index];
+                      final isPemasukan = cat.tipe == 'PEMASUKAN';
 
-                    return Card(
-                      elevation: 3,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: isPemasukan
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.red.withOpacity(0.1),
-                          child: Icon(
-                            isPemasukan
-                                ? Icons.arrow_downward
-                                : Icons.arrow_upward,
-                            color: isPemasukan ? Colors.green : Colors.red,
+                      return Card(
+                        elevation: 3,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: isPemasukan
+                                ? Colors.green.withOpacity(0.1)
+                                : Colors.red.withOpacity(0.1),
+                            child: Icon(
+                              isPemasukan
+                                  ? Icons.arrow_downward
+                                  : Icons.arrow_upward,
+                              color: isPemasukan ? Colors.green : Colors.red,
+                            ),
+                          ),
+                          title: Text(cat.nama,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black)), // Warna teks hitam
+                          subtitle: Text(cat.tipe,
+                              style: const TextStyle(
+                                  color: Colors.black54)), // Warna teks hitam
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () => _showFormDialog(kategori: cat),
+                              ),
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _showDeleteDialog(cat),
+                              ),
+                            ],
                           ),
                         ),
-                        title: Text(cat.nama,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(cat.tipe),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () => _showFormDialog(kategori: cat),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _showDeleteDialog(cat),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
+      ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,

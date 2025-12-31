@@ -1,6 +1,6 @@
 import 'package:sqflite/sqflite.dart';
-import 'package:saku_cerdas/db_helper.dart';
-import 'package:saku_cerdas/models/kategori.dart';
+import '../db_helper.dart';
+import '../models/kategori.dart';
 
 class KategoriService {
   // CREATE
@@ -9,27 +9,31 @@ class KategoriService {
     return await db.insert(
       'kategori',
       kategori.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      conflictAlgorithm: ConflictAlgorithm.fail,
     );
   }
 
-  // READ ALL
+  // READ ALL (Hanya yang tidak di-soft delete)
   static Future<List<KategoriModel>> getAllKategori() async {
     final db = await DBHelper.db();
-    final List<Map<String, dynamic>> maps = await db.query('kategori');
+    final List<Map<String, dynamic>> maps = await db.query(
+      'kategori',
+      where: 'is_deleted = ?',
+      whereArgs: [0],
+    );
 
     return List.generate(maps.length, (i) {
       return KategoriModel.fromMap(maps[i]);
     });
   }
 
-  // READ TIPE
+  // READ TIPE (Hanya yang tidak di-soft delete)
   static Future<List<KategoriModel>> getKategoriByTipe(String tipe) async {
     final db = await DBHelper.db();
     final List<Map<String, dynamic>> maps = await db.query(
       'kategori',
-      where: 'tipe = ?',
-      whereArgs: [tipe],
+      where: 'tipe = ? AND is_deleted = ?',
+      whereArgs: [tipe, 0],
     );
 
     return maps.map((e) => KategoriModel.fromMap(e)).toList();
@@ -43,10 +47,22 @@ class KategoriService {
       kategori.toMap(),
       where: 'kategori_id = ?',
       whereArgs: [kategori.kategoriId],
+      conflictAlgorithm: ConflictAlgorithm.fail,
     );
   }
 
-  // DELETE
+  // SOFT DELETE
+  static Future<int> softDeleteKategori(int id) async {
+    final db = await DBHelper.db();
+    return await db.update(
+      'kategori',
+      {'is_deleted': 1},
+      where: 'kategori_id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // HARD DELETE (Jika suatu saat dibutuhkan)
   static Future<int> deleteKategori(int id) async {
     final db = await DBHelper.db();
     return await db.delete(
