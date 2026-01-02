@@ -55,4 +55,9 @@ class SaldoService {
       whereArgs: [saldoId],
     );
   }
+
+  static Future<void> deleteAllSaldo() async {
+    final db = await DBHelper.db();
+    await db.delete('saldo');
+  }
 }

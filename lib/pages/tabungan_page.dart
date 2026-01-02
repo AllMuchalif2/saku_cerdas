@@ -20,7 +20,6 @@ class _TabunganPageState extends State<TabunganPage> {
     return "Rp ${number.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}";
   }
 
-  // Merefresh tampilan setelah CRUD (memanggil setState agar FutureBuilder jalan ulang)
   void _refreshData() {
     setState(() {});
   }
@@ -29,7 +28,6 @@ class _TabunganPageState extends State<TabunganPage> {
   Future<void> _simpanTabungan({Tabungan? tabungan}) async {
     final String nama = _namaController.text;
     final double target = double.tryParse(_targetController.text) ?? 0;
-    // Jumlah biasanya otomatis dari transaksi, tapi kita izinkan edit manual saat inisialisasi
     final double jumlah = double.tryParse(_jumlahController.text) ?? 0;
 
     if (nama.isNotEmpty && target > 0) {
@@ -192,131 +190,152 @@ class _TabunganPageState extends State<TabunganPage> {
           }
 
           // 3. Empty State
+          // Kita bungkus Empty State dengan Stack/ListView agar tetap bisa ditarik refresh
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text("Belum ada target tabungan."));
+            return RefreshIndicator(
+              onRefresh: () async {
+                _refreshData();
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(
+                      height: 200), // Spasi agar teks di tengah (kira-kira)
+                  Center(child: Text("Belum ada target tabungan.")),
+                ],
+              ),
+            );
           }
 
           // 4. Data State
           final listTabungan = snapshot.data!;
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: listTabungan.length,
-            itemBuilder: (context, index) {
-              final item = listTabungan[index];
-
-              // Menghitung persentase progress (0.0 sampai 1.0)
-              double progress = item.targetJumlah > 0
-                  ? (item.jumlah / item.targetJumlah)
-                  : 0.0;
-              // Clamp agar tidak error visual jika lebih dari 100%
-              double displayProgress = progress > 1.0 ? 1.0 : progress;
-
-              return Card(
-                elevation: 3,
-                margin: const EdgeInsets.only(bottom: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header: Nama dan Menu Option
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item.nama,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (value == 'edit') {
-                                _showFormDialog(tabungan: item);
-                              } else if (value == 'delete') {
-                                _showDeleteDialog(item);
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              const PopupMenuItem(
-                                value: 'edit',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.edit, size: 20),
-                                    SizedBox(width: 8),
-                                    Text("Edit")
-                                  ],
-                                ),
-                              ),
-                              const PopupMenuItem(
-                                value: 'delete',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.delete,
-                                        color: Colors.red, size: 20),
-                                    SizedBox(width: 8),
-                                    Text("Hapus")
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Progress Bar
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: displayProgress,
-                          minHeight: 12,
-                          backgroundColor: Colors.grey[200],
-                          color: progress >= 1.0 ? Colors.green : Colors.blue,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Detail Angka
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _formatRupiah(item.jumlah),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.blue,
-                            ),
-                          ),
-                          Text(
-                            "Target: ${_formatRupiah(item.targetJumlah)}",
-                            style: TextStyle(color: Colors.grey[600]),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "${(progress * 100).toStringAsFixed(1)}% Terkumpul",
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: progress >= 1.0
-                                ? Colors.green
-                                : Colors.grey[600],
-                            fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-              );
+          // === PERUBAHAN DISINI (RefreshIndicator) ===
+          return RefreshIndicator(
+            onRefresh: () async {
+              _refreshData(); // Panggil fungsi refresh saat layar ditarik
             },
+            child: ListView.builder(
+              physics:
+                  const AlwaysScrollableScrollPhysics(), // Agar selalu bisa ditarik meski item sedikit
+              padding: const EdgeInsets.all(12),
+              itemCount: listTabungan.length,
+              itemBuilder: (context, index) {
+                final item = listTabungan[index];
+
+                // Menghitung persentase progress (0.0 sampai 1.0)
+                double progress = item.targetJumlah > 0
+                    ? (item.jumlah / item.targetJumlah)
+                    : 0.0;
+                // Clamp agar tidak error visual jika lebih dari 100%
+                double displayProgress = progress > 1.0 ? 1.0 : progress;
+
+                return Card(
+                  elevation: 3,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header: Nama dan Menu Option
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.nama,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            PopupMenuButton<String>(
+                              onSelected: (value) {
+                                if (value == 'edit') {
+                                  _showFormDialog(tabungan: item);
+                                } else if (value == 'delete') {
+                                  _showDeleteDialog(item);
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'edit',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.edit, size: 20),
+                                      SizedBox(width: 8),
+                                      Text("Edit")
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.delete,
+                                          color: Colors.red, size: 20),
+                                      SizedBox(width: 8),
+                                      Text("Hapus")
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Progress Bar
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: LinearProgressIndicator(
+                            value: displayProgress,
+                            minHeight: 12,
+                            backgroundColor: Colors.grey[200],
+                            color: progress >= 1.0 ? Colors.green : Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Detail Angka
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _formatRupiah(item.jumlah),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blue,
+                              ),
+                            ),
+                            Text(
+                              "Target: ${_formatRupiah(item.targetJumlah)}",
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "${(progress * 100).toStringAsFixed(1)}% Terkumpul",
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: progress >= 1.0
+                                  ? Colors.green
+                                  : Colors.grey[600],
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
           );
         },
       ),

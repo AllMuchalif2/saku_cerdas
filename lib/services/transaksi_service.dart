@@ -42,11 +42,13 @@ class TransaksiService {
 
         // UPDATE TABUNGAN (Jika ada)
         if (transaksi.tabunganId != null) {
-          if (tipe == 'PENGELUARAN') {
+          // Logika diperbaiki: Pemasukan menambah tabungan, pengeluaran mengurangi.
+          if (tipe == 'PEMASUKAN') {
             await txn.execute(
                 'UPDATE tabungan SET jumlah = jumlah + ? WHERE tabungan_id = ?',
                 [jumlah, transaksi.tabunganId]);
           } else {
+            // PENGELUARAN
             await txn.execute(
                 'UPDATE tabungan SET jumlah = jumlah - ? WHERE tabungan_id = ?',
                 [jumlah, transaksi.tabunganId]);
@@ -140,16 +142,17 @@ class TransaksiService {
               [oldJumlah, oldSaldoId]);
           if (oldTabId != null) {
             await txn.execute(
-                'UPDATE tabungan SET jumlah = jumlah - ? WHERE tabungan_id = ?',
+                'UPDATE tabungan SET jumlah = jumlah + ? WHERE tabungan_id = ?',
                 [oldJumlah, oldTabId]);
           }
         } else {
+          // PEMASUKAN
           await txn.execute(
               'UPDATE saldo SET total = total - ? WHERE saldo_id = ?',
               [oldJumlah, oldSaldoId]);
           if (oldTabId != null) {
             await txn.execute(
-                'UPDATE tabungan SET jumlah = jumlah + ? WHERE tabungan_id = ?',
+                'UPDATE tabungan SET jumlah = jumlah - ? WHERE tabungan_id = ?',
                 [oldJumlah, oldTabId]);
           }
         }
@@ -168,16 +171,17 @@ class TransaksiService {
               [jumlah, saldoId]);
           if (tabunganId != null) {
             await txn.execute(
-                'UPDATE tabungan SET jumlah = jumlah + ? WHERE tabungan_id = ?',
+                'UPDATE tabungan SET jumlah = jumlah - ? WHERE tabungan_id = ?',
                 [jumlah, tabunganId]);
           }
         } else {
+          // PEMASUKAN
           await txn.execute(
               'UPDATE saldo SET total = total + ? WHERE saldo_id = ?',
               [jumlah, saldoId]);
           if (tabunganId != null) {
             await txn.execute(
-                'UPDATE tabungan SET jumlah = jumlah - ? WHERE tabungan_id = ?',
+                'UPDATE tabungan SET jumlah = jumlah + ? WHERE tabungan_id = ?',
                 [jumlah, tabunganId]);
           }
         }
@@ -224,22 +228,24 @@ class TransaksiService {
           if (kat.isNotEmpty) {
             String tipe = kat.first['tipe'].toString().toUpperCase();
 
+            // Membalikkan logika: hapus pemasukan akan mengurangi saldo, hapus pengeluaran akan menambah.
             if (tipe == 'PENGELUARAN') {
               await txn.execute(
                   'UPDATE saldo SET total = total + ? WHERE saldo_id = ?',
                   [jumlah, saldoId]);
               if (tabunganId != null) {
                 await txn.execute(
-                    'UPDATE tabungan SET jumlah = jumlah - ? WHERE tabungan_id = ?',
+                    'UPDATE tabungan SET jumlah = jumlah + ? WHERE tabungan_id = ?',
                     [jumlah, tabunganId]);
               }
             } else {
+              // PEMASUKAN
               await txn.execute(
                   'UPDATE saldo SET total = total - ? WHERE saldo_id = ?',
                   [jumlah, saldoId]);
               if (tabunganId != null) {
                 await txn.execute(
-                    'UPDATE tabungan SET jumlah = jumlah + ? WHERE tabungan_id = ?',
+                    'UPDATE tabungan SET jumlah = jumlah - ? WHERE tabungan_id = ?',
                     [jumlah, tabunganId]);
               }
             }
@@ -256,5 +262,10 @@ class TransaksiService {
       debugPrint("Error pada deleteTransaksi: $e");
       return 0;
     }
+  }
+
+  static Future<void> deleteAllTransaksi() async {
+    final db = await DBHelper.db();
+    await db.delete('transaksi');
   }
 }

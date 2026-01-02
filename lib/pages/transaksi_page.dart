@@ -14,6 +14,7 @@ class TransaksiPage extends StatefulWidget {
 class _TransaksiPageState extends State<TransaksiPage> {
   // Variabel penampung filter
   String _selectedFilter = 'SEMUA';
+  String _selectedTimeFilter = 'SEMUA'; // Tambahan filter waktu
 
   String formatRupiah(num nominal) {
     return NumberFormat.currency(
@@ -35,15 +36,15 @@ class _TransaksiPageState extends State<TransaksiPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Riwayat Transaksi'),
-        centerTitle: false, // Perbaikan: AppBar tidak di center
+        centerTitle: false,
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
-          // --- TAMBAHAN: BARIS FILTER ---
+          // --- BARIS FILTER KATEGORI ---
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+            padding: const EdgeInsets.only(top: 12, left: 8, right: 8),
             color: Colors.white,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -52,6 +53,26 @@ class _TransaksiPageState extends State<TransaksiPage> {
                 _buildFilterButton('PEMASUKAN'),
                 _buildFilterButton('PENGELUARAN'),
               ],
+            ),
+          ),
+
+          // --- BARIS FILTER WAKTU (TAMBAHAN BARU) ---
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            color: Colors.white,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildTimeFilterChip('SEMUA'),
+                  const SizedBox(width: 8),
+                  _buildTimeFilterChip('HARI INI'),
+                  const SizedBox(width: 8),
+                  _buildTimeFilterChip('BULAN INI'),
+                  const SizedBox(width: 8),
+                  _buildTimeFilterChip('TAHUN INI'),
+                ],
+              ),
             ),
           ),
           const Divider(height: 1),
@@ -75,12 +96,36 @@ class _TransaksiPageState extends State<TransaksiPage> {
                   // Logika Filter Data
                   List<Map<String, dynamic>> listTransaksi =
                       snapshot.data ?? [];
+                  DateTime now = DateTime.now();
+
+                  // 1. Filter Tipe
                   if (_selectedFilter != 'SEMUA') {
                     listTransaksi = listTransaksi
                         .where((item) =>
                             item['tipe']?.toString().toUpperCase() ==
                             _selectedFilter)
                         .toList();
+                  }
+
+                  // 2. Filter Waktu (Logic Baru)
+                  if (_selectedTimeFilter != 'SEMUA') {
+                    listTransaksi = listTransaksi.where((item) {
+                      try {
+                        DateTime tgl = DateTime.parse(item['tanggal']);
+                        if (_selectedTimeFilter == 'HARI INI') {
+                          return tgl.year == now.year &&
+                              tgl.month == now.month &&
+                              tgl.day == now.day;
+                        } else if (_selectedTimeFilter == 'BULAN INI') {
+                          return tgl.year == now.year && tgl.month == now.month;
+                        } else if (_selectedTimeFilter == 'TAHUN INI') {
+                          return tgl.year == now.year;
+                        }
+                      } catch (e) {
+                        return true;
+                      }
+                      return true;
+                    }).toList();
                   }
 
                   if (listTransaksi.isEmpty) {
@@ -135,7 +180,6 @@ class _TransaksiPageState extends State<TransaksiPage> {
                                         isPemasukan ? Colors.green : Colors.red,
                                     fontWeight: FontWeight.bold),
                               ),
-                              // PERBAIKAN: Mengganti tombol edit menjadi Titik Tiga (PopupMenuButton)
                               PopupMenuButton<String>(
                                 onSelected: (String value) {
                                   if (value == 'detail') {
@@ -210,7 +254,7 @@ class _TransaksiPageState extends State<TransaksiPage> {
     );
   }
 
-  // Widget Helper untuk tombol filter
+  // Widget Helper untuk tombol filter kategori
   Widget _buildFilterButton(String label) {
     bool isActive = _selectedFilter == label;
     return GestureDetector(
@@ -233,7 +277,32 @@ class _TransaksiPageState extends State<TransaksiPage> {
     );
   }
 
-  // --- FUNGSI EDIT LENGKAP VIA ALERT DIALOG ---
+  // Widget Helper untuk chip filter waktu
+  Widget _buildTimeFilterChip(String label) {
+    bool isActive = _selectedTimeFilter == label;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isActive,
+      onSelected: (bool selected) {
+        setState(() {
+          _selectedTimeFilter = label;
+        });
+      },
+      selectedColor: Colors.teal.withOpacity(0.2),
+      backgroundColor: Colors.grey[100],
+      labelStyle: TextStyle(
+        color: isActive ? Colors.teal : Colors.black87,
+        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+        fontSize: 11,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: isActive ? Colors.teal : Colors.transparent),
+      ),
+    );
+  }
+
+  // --- FUNGSI EDIT, DETAIL, DAN HAPUS TETAP SAMA ---
   void _showEditDialog(Map<String, dynamic> item) async {
     final db = await DBHelper.db();
 
@@ -375,7 +444,6 @@ class _TransaksiPageState extends State<TransaksiPage> {
     );
   }
 
-  // --- DETAIL & HAPUS ---
   void _showDetailTransaksi(Map<String, dynamic> item) {
     showModalBottomSheet(
       context: context,

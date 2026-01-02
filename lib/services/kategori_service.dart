@@ -71,4 +71,9 @@ class KategoriService {
       whereArgs: [id],
     );
   }
+
+  static Future<void> deleteAllKategori() async {
+    final db = await DBHelper.db();
+    await db.delete('kategori');
+  }
 }

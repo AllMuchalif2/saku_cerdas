@@ -58,16 +58,23 @@ class _KategoriPageState extends State<KategoriPage> {
       }
 
       if (!mounted) return;
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(); // Pop form dialog
       _refreshCategories();
 
-      // Tampilkan pesan sukses
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+      // Show success dialog
+      showDialog(
+        context: this.context, // Use page's context
+        builder: (ctx) => AlertDialog(
+          title: const Text('Berhasil'),
           content: Text(isEdit
               ? 'Kategori berhasil diubah.'
               : 'Kategori berhasil ditambahkan.'),
-          backgroundColor: Colors.green,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
         ),
       );
     } catch (e) {
@@ -214,13 +221,21 @@ class _KategoriPageState extends State<KategoriPage> {
             onPressed: () async {
               await KategoriService.softDeleteKategori(kategori.kategoriId!);
               if (!mounted) return;
-              Navigator.pop(ctx);
+              Navigator.pop(ctx); // Pop confirm dialog
               _refreshCategories();
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Kategori berhasil dihapus.'),
-                  backgroundColor: Colors.green,
+              // Show success dialog
+              showDialog(
+                context: this.context, // Use page's context
+                builder: (dialogContext) => AlertDialog(
+                  title: const Text('Berhasil'),
+                  content: const Text('Kategori berhasil dihapus.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('OK'),
+                    ),
+                  ],
                 ),
               );
             },

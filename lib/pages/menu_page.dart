@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/kategori_service.dart';
 import '../services/saldo_service.dart';
+// Tambahkan import service baru
+import '../services/transaksi_service.dart';
+import '../services/tabungan_service.dart';
 
 // Tambahkan import halaman tujuan di sini
 import './kategori_page.dart';
@@ -44,6 +47,107 @@ class _MenuPageState extends State<MenuPage> {
     }
   }
 
+  // --- LOGIKA BARU UNTUK HAPUS DATA ---
+
+  // 1. Menampilkan Menu Pengaturan
+  void _showSettingsMenu() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  "Pengaturan",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.delete_forever, color: Colors.red),
+                title: const Text(
+                  "Hapus Semua Data",
+                  style:
+                      TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text("Reset aplikasi ke pengaturan awal"),
+                onTap: () {
+                  Navigator.pop(context); // Tutup bottom sheet
+                  _showDeleteConfirmation(); // Tampilkan dialog konfirmasi
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // 2. Dialog Konfirmasi
+  void _showDeleteConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Hapus Semua Data?"),
+        content: const Text(
+            "Tindakan ini tidak dapat dibatalkan. Semua data (Transaksi, Tabungan, Kategori, Saldo) akan hilang permanen."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(context); // Tutup dialog
+              _performDeleteAll(); // Jalankan penghapusan
+            },
+            child: const Text("Hapus", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 3. Proses Penghapusan Data (DIPERBARUI)
+  Future<void> _performDeleteAll() async {
+    setState(() => _isLoading = true);
+    try {
+      // URUTAN PENTING: Hapus data anak (Transaksi) dulu, baru data induk
+      await TransaksiService.deleteAllTransaksi();
+      await TabunganService.deleteAllTabungan();
+      await KategoriService.deleteAllKategori();
+      await SaldoService.deleteAllSaldo();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Semua data berhasil dihapus (Reset Total)"),
+            backgroundColor: Colors.red,
+          ),
+        );
+        _loadCounts(); // Refresh counter menjadi 0
+      }
+    } catch (e) {
+      debugPrint("Error deleting data: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Gagal menghapus data: $e")),
+        );
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  // --- AKHIR LOGIKA BARU ---
+
   @override
   Widget build(BuildContext context) {
     const colorPrimary = Colors.teal;
@@ -69,7 +173,7 @@ class _MenuPageState extends State<MenuPage> {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      // Card Kategori dengan navigasi ke KategoriPage
+                      // Card Kategori
                       _buildMenuCard(
                         context,
                         title: "Kategori",
@@ -81,12 +185,11 @@ class _MenuPageState extends State<MenuPage> {
                             context,
                             MaterialPageRoute(
                                 builder: (context) => const KategoriPage()),
-                          ).then((_) =>
-                              _loadCounts()); // Refresh jumlah setelah kembali
+                          ).then((_) => _loadCounts());
                         },
                       ),
                       const SizedBox(width: 16),
-                      // Card Saldo dengan navigasi ke SaldoPage
+                      // Card Saldo
                       _buildMenuCard(
                         context,
                         title: "Saldo",
@@ -97,8 +200,7 @@ class _MenuPageState extends State<MenuPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const SaldoPage(),
-                            ),
+                                builder: (context) => const SaldoPage()),
                           ).then((_) => _loadCounts());
                         },
                       ),
@@ -110,7 +212,8 @@ class _MenuPageState extends State<MenuPage> {
                   ListTile(
                     leading: const Icon(Icons.settings),
                     title: const Text("Pengaturan Aplikasi"),
-                    onTap: () {},
+                    // PANGGIL FUNGSI MENU DI SINI
+                    onTap: _showSettingsMenu,
                   ),
                   ListTile(
                     leading: const Icon(Icons.info_outline),

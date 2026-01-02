@@ -27,21 +27,51 @@ class _SaldoPageState extends State<SaldoPage> {
     });
   }
 
-  // 🔔 NOTIF
-  void showNotif(String pesan) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(pesan),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
+  // 🔔 NOTIF TENGAH LAYAR
+  void showCenterNotif(String pesan, {bool success = true}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) {
+        Future.delayed(const Duration(seconds: 2), () {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+        });
+
+        return AlertDialog(
+          backgroundColor: Colors.teal,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Row(
+            children: [
+              Icon(
+                success ? Icons.check_circle : Icons.error,
+                color: Colors.white,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  pesan,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   // ➕ TAMBAH SALDO
   void tambahSaldo() async {
     final controller = TextEditingController();
-
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -57,9 +87,11 @@ class _SaldoPageState extends State<SaldoPage> {
             child: const Text("Batal"),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
             onPressed: () async {
               if (controller.text.trim().isEmpty) {
-                showNotif("Nama saldo tidak boleh kosong");
+                showCenterNotif("Nama saldo tidak boleh kosong",
+                    success: false);
                 return;
               }
 
@@ -69,7 +101,7 @@ class _SaldoPageState extends State<SaldoPage> {
 
               Navigator.pop(context);
               loadSaldo();
-              showNotif("Saldo baru berhasil ditambahkan");
+              showCenterNotif("Saldo telah berhasil ditambahkan");
             },
             child: const Text("Simpan"),
           ),
@@ -81,24 +113,23 @@ class _SaldoPageState extends State<SaldoPage> {
   // ✏️ EDIT SALDO
   void editSaldo(Saldo saldo) async {
     final controller = TextEditingController(text: saldo.nama);
-
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: const Text("Edit Nama Saldo"),
-        content: TextField(
-          controller: controller,
-        ),
+        content: TextField(controller: controller),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text("Batal"),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
             onPressed: () async {
               if (controller.text.trim().isEmpty) {
-                showNotif("Nama saldo tidak boleh kosong");
+                showCenterNotif("Nama saldo tidak boleh kosong",
+                    success: false);
                 return;
               }
 
@@ -112,7 +143,7 @@ class _SaldoPageState extends State<SaldoPage> {
 
               Navigator.pop(context);
               loadSaldo();
-              showNotif("Saldo berhasil diedit");
+              showCenterNotif("Saldo telah berhasil diubah");
             },
             child: const Text("Update"),
           ),
@@ -121,10 +152,9 @@ class _SaldoPageState extends State<SaldoPage> {
     );
   }
 
-  // 💸 ISI SALDO (DIALOG)
+  // 💸 ISI SALDO
   void isiSaldoDialog(Saldo saldo) async {
     final controller = TextEditingController();
-
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -144,10 +174,11 @@ class _SaldoPageState extends State<SaldoPage> {
             child: const Text("Batal"),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
             onPressed: () async {
               final nominal = int.tryParse(controller.text) ?? 0;
               if (nominal <= 0) {
-                showNotif("Nominal tidak valid");
+                showCenterNotif("Nominal tidak valid", success: false);
                 return;
               }
 
@@ -158,7 +189,7 @@ class _SaldoPageState extends State<SaldoPage> {
 
               Navigator.pop(context);
               loadSaldo();
-              showNotif("Saldo berhasil diisi");
+              showCenterNotif("Saldo telah berhasil diisi");
             },
             child: const Text("Isi Saldo"),
           ),
@@ -171,23 +202,23 @@ class _SaldoPageState extends State<SaldoPage> {
   void hapusSaldo(int id) async {
     await SaldoService.deleteSaldo(id);
     loadSaldo();
-    showNotif("Saldo berhasil dihapus");
+    showCenterNotif("Saldo telah berhasil dihapus");
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
         title: const Text("Dompet"),
       ),
-
-      // ➕ FLOATING BUTTON
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
         child: const Icon(Icons.add, size: 30),
         onPressed: tambahSaldo,
       ),
-
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : listSaldo.isEmpty

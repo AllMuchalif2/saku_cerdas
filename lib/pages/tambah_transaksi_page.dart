@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Tambahkan ini untuk inputFormatters
+import 'package:flutter/services.dart';
 import '../services/transaksi_service.dart';
 import '../services/kategori_service.dart';
 import '../services/saldo_service.dart';
@@ -76,6 +76,38 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
         return;
       }
 
+      // Ambil input nominal dan data terpilih
+      final nominalInput = double.tryParse(_nominalController.text) ?? 0.0;
+      final kategoriTerpilih =
+          _kategoriList.firstWhere((k) => k.kategoriId == _selectedKategoriId);
+      final saldoTerpilih =
+          _saldoList.firstWhere((s) => s.saldoId == _selectedSaldoId);
+
+      // VALIDASI: Cek jika kategori adalah Pengeluaran
+      if (kategoriTerpilih.tipe.toLowerCase() == 'pengeluaran' ||
+          kategoriTerpilih.tipe.toLowerCase() == 'keluar') {
+        // Membandingkan nominal input dengan saldoTerpilih.total
+        if (nominalInput > saldoTerpilih.total) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text("Saldo Anda Tidak Mencukupi"),
+              content: Text(
+                  "Saldo '${saldoTerpilih.nama}' tidak cukup untuk melakukan transaksi ini.\n\n"
+                  "Sisa Saldo: Rp ${saldoTerpilih.total}\n"
+                  "Nominal Transaksi: Rp ${nominalInput.toInt()}"),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text("OK"),
+                )
+              ],
+            ),
+          );
+          return; // Hentikan proses simpan
+        }
+      }
+
       if (mounted) setState(() => _isSubmitting = true);
 
       try {
@@ -83,7 +115,7 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
           saldoId: _selectedSaldoId!,
           kategoriId: _selectedKategoriId!,
           tabunganId: _selectedTabunganId,
-          jumlah: double.tryParse(_nominalController.text) ?? 0.0,
+          jumlah: nominalInput,
           tanggal: _tanggalController.text,
           nama: _namaController.text,
         );
@@ -145,6 +177,7 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                             controller: _namaController,
                             decoration: const InputDecoration(
                               labelText: 'Keterangan Transaksi',
+                              border: OutlineInputBorder(),
                             ),
                             validator: (value) => value == null || value.isEmpty
                                 ? 'Masukkan keterangan'
@@ -157,6 +190,7 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                             value: _selectedKategoriId,
                             decoration: const InputDecoration(
                               labelText: 'Kategori',
+                              border: OutlineInputBorder(),
                             ),
                             items: _kategoriList.map((kat) {
                               return DropdownMenuItem<int>(
@@ -171,7 +205,7 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                           ),
                           const SizedBox(height: 16),
 
-                          // INPUT NOMINAL (SESUAI CONTOH ISI SALDO)
+                          // INPUT NOMINAL
                           TextFormField(
                             controller: _nominalController,
                             keyboardType: TextInputType.number,
@@ -181,17 +215,11 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                             decoration: const InputDecoration(
                               labelText: "Nominal Transaksi",
                               prefixText: "Rp ",
+                              border: OutlineInputBorder(),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Masukkan nominal';
-                              }
-                              final n = num.tryParse(value);
-                              if (n == null) {
-                                return 'Masukkan angka yang valid';
-                              }
-                              if (n <= 0) {
-                                return 'Jumlah tidak boleh 0 atau minus';
                               }
                               return null;
                             },
@@ -203,11 +231,14 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                             value: _selectedSaldoId,
                             decoration: const InputDecoration(
                               labelText: 'Jenis Saldo',
+                              border: OutlineInputBorder(),
                             ),
                             items: _saldoList.map((s) {
                               return DropdownMenuItem<int>(
                                 value: s.saldoId,
-                                child: Text(s.nama),
+                                // Menggunakan s.total sesuai model Anda
+                                child:
+                                    Text("${s.nama} (Tersedia: Rp ${s.total})"),
                               );
                             }).toList(),
                             onChanged: (val) =>
@@ -222,6 +253,7 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                             value: _selectedTabunganId,
                             decoration: const InputDecoration(
                               labelText: 'Pilih Tabungan (Opsional)',
+                              border: OutlineInputBorder(),
                             ),
                             items: [
                               const DropdownMenuItem<int?>(
@@ -246,6 +278,8 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                             readOnly: true,
                             decoration: const InputDecoration(
                               labelText: 'Tanggal',
+                              border: OutlineInputBorder(),
+                              suffixIcon: Icon(Icons.calendar_today),
                             ),
                             onTap: () async {
                               DateTime? pickedDate = await showDatePicker(
@@ -290,13 +324,5 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
           ),
       ],
     );
-  }
-
-  @override
-  void dispose() {
-    _namaController.dispose();
-    _nominalController.dispose();
-    _tanggalController.dispose();
-    super.dispose();
   }
 }
