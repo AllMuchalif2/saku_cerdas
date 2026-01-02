@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Tambahkan ini untuk inputFormatters
 import '../services/transaksi_service.dart';
 import '../services/kategori_service.dart';
 import '../services/saldo_service.dart';
@@ -41,18 +42,6 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
     _loadAllData();
   }
 
-  void _resetForm() {
-    _formKey.currentState?.reset();
-    _namaController.clear();
-    _nominalController.clear();
-    _tanggalController.text = DateTime.now().toString().split(' ')[0];
-    setState(() {
-      _selectedKategoriId = null;
-      _selectedSaldoId = null;
-      _selectedTabunganId = null;
-    });
-  }
-
   Future<void> _loadAllData() async {
     try {
       if (!mounted) return;
@@ -77,7 +66,6 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
     }
   }
 
-  // FUNGSI SIMPAN YANG SUDAH DIPERBAIKI
   void _simpanTransaksi() async {
     if (_formKey.currentState!.validate()) {
       if (_selectedKategoriId == null || _selectedSaldoId == null) {
@@ -97,7 +85,7 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
           tabunganId: _selectedTabunganId,
           jumlah: double.tryParse(_nominalController.text) ?? 0.0,
           tanggal: _tanggalController.text,
-          nama: _namaController.text, // Make sure to add this
+          nama: _namaController.text,
         );
 
         await TransaksiService.insertTransaksi(transaksiBaru);
@@ -107,8 +95,8 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Transaksi Berhasil Disimpan')),
           );
-          _resetForm(); // Reset form for next entry
-          widget.onSaveSuccess?.call(); // Panggil callback jika ada
+          widget.onSaveSuccess?.call();
+          Navigator.pop(context, true);
         }
       } catch (e) {
         if (mounted) {
@@ -140,7 +128,6 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
             title: const Text('Tambah Transaksi'),
             backgroundColor: Colors.teal,
             foregroundColor: Colors.white,
-            automaticallyImplyLeading: false,
           ),
           body: _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -153,25 +140,23 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          // INPUT KETERANGAN
                           TextFormField(
                             controller: _namaController,
                             decoration: const InputDecoration(
                               labelText: 'Keterangan Transaksi',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.edit),
                             ),
-                            validator: (value) =>
-                                value == null || value.isEmpty
-                                    ? 'Masukkan keterangan'
-                                    : null,
+                            validator: (value) => value == null || value.isEmpty
+                                ? 'Masukkan keterangan'
+                                : null,
                           ),
                           const SizedBox(height: 16),
+
+                          // DROP DOWN KATEGORI
                           DropdownButtonFormField<int>(
                             value: _selectedKategoriId,
                             decoration: const InputDecoration(
                               labelText: 'Kategori',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.category),
                             ),
                             items: _kategoriList.map((kat) {
                               return DropdownMenuItem<int>(
@@ -185,26 +170,39 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                                 val == null ? 'Pilih kategori' : null,
                           ),
                           const SizedBox(height: 16),
+
+                          // INPUT NOMINAL (SESUAI CONTOH ISI SALDO)
                           TextFormField(
                             controller: _nominalController,
-                            decoration: const InputDecoration(
-                              labelText: 'Jumlah (Rp)',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.money),
-                            ),
                             keyboardType: TextInputType.number,
-                            validator: (value) =>
-                                value == null || value.isEmpty
-                                    ? 'Masukkan nominal'
-                                    : null,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            decoration: const InputDecoration(
+                              labelText: "Nominal Transaksi",
+                              prefixText: "Rp ",
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Masukkan nominal';
+                              }
+                              final n = num.tryParse(value);
+                              if (n == null) {
+                                return 'Masukkan angka yang valid';
+                              }
+                              if (n <= 0) {
+                                return 'Jumlah tidak boleh 0 atau minus';
+                              }
+                              return null;
+                            },
                           ),
                           const SizedBox(height: 16),
+
+                          // DROP DOWN SALDO
                           DropdownButtonFormField<int>(
                             value: _selectedSaldoId,
                             decoration: const InputDecoration(
                               labelText: 'Jenis Saldo',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.account_balance_wallet),
                             ),
                             items: _saldoList.map((s) {
                               return DropdownMenuItem<int>(
@@ -218,12 +216,12 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                                 val == null ? 'Pilih jenis saldo' : null,
                           ),
                           const SizedBox(height: 16),
+
+                          // DROP DOWN TABUNGAN
                           DropdownButtonFormField<int?>(
                             value: _selectedTabunganId,
                             decoration: const InputDecoration(
                               labelText: 'Pilih Tabungan (Opsional)',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.savings),
                             ),
                             items: [
                               const DropdownMenuItem<int?>(
@@ -241,13 +239,13 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                                 setState(() => _selectedTabunganId = val),
                           ),
                           const SizedBox(height: 16),
+
+                          // INPUT TANGGAL
                           TextFormField(
                             controller: _tanggalController,
                             readOnly: true,
                             decoration: const InputDecoration(
                               labelText: 'Tanggal',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.calendar_today),
                             ),
                             onTap: () async {
                               DateTime? pickedDate = await showDatePicker(
@@ -265,12 +263,12 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                             },
                           ),
                           const SizedBox(height: 30),
+
                           ElevatedButton(
                             onPressed: _isSubmitting ? null : _simpanTransaksi,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.teal,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 16),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
                             ),
                             child: const Text('SUBMIT TRANSAKSI',
                                 style: TextStyle(
@@ -278,13 +276,11 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                                     fontWeight: FontWeight.bold)),
                           ),
                         ],
-                      ), // Column
-                    ), // Form
-                  ), // SingleChildScrollView
-                ), // Scaffold
+                      ),
+                    ),
+                  ),
+                ),
         ),
-
-        // In-widget modal overlay shown while submitting
         if (_isSubmitting)
           Positioned.fill(
             child: Container(

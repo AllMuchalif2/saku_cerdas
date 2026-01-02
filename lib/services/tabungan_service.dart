@@ -1,5 +1,4 @@
 import '../db_helper.dart';
-
 import '../models/tabungan.dart';
 
 class TabunganService {
@@ -13,7 +12,6 @@ class TabunganService {
   static Future<List<Tabungan>> getAllTabungan() async {
     final db = await DBHelper.db();
     final result = await db.query('tabungan', orderBy: 'tabungan_id DESC');
-
     return result.map((e) => Tabungan.fromMap(e)).toList();
   }
 
@@ -25,14 +23,13 @@ class TabunganService {
       where: 'tabungan_id = ?',
       whereArgs: [id],
     );
-
     if (result.isNotEmpty) {
       return Tabungan.fromMap(result.first);
     }
     return null;
   }
 
-  // UPDATE
+  // UPDATE DATA
   static Future<int> updateTabungan(Tabungan tabungan) async {
     final db = await DBHelper.db();
     return await db.update(
@@ -43,15 +40,25 @@ class TabunganService {
     );
   }
 
-  // UPDATE JUMLAH TABUNGAN (dipakai saat transaksi)
-  static Future<int> updateJumlahTabungan(int tabunganId, double jumlahBaru) async {
+  // 🔥 UPDATE SALDO DARI TRANSAKSI
+  static Future<void> updateSaldoDariTransaksi({
+    required int tabunganId,
+    required double nominal,
+    required bool isPemasukan,
+  }) async {
     final db = await DBHelper.db();
-    return await db.update(
-      'tabungan',
-      {'jumlah': jumlahBaru},
-      where: 'tabungan_id = ?',
-      whereArgs: [tabunganId],
-    );
+
+    if (isPemasukan) {
+      await db.rawUpdate(
+        'UPDATE tabungan SET jumlah = jumlah + ? WHERE tabungan_id = ?',
+        [nominal, tabunganId],
+      );
+    } else {
+      await db.rawUpdate(
+        'UPDATE tabungan SET jumlah = jumlah - ? WHERE tabungan_id = ?',
+        [nominal, tabunganId],
+      );
+    }
   }
 
   // DELETE

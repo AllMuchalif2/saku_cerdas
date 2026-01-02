@@ -9,17 +9,12 @@ class TransaksiService {
 
     try {
       return await db.transaction((txn) async {
-        // Ambil map dari model
         Map<String, dynamic> data = transaksi.toMap();
-
-        // PENTING: Hapus transaksi_id agar tidak konflik dengan AUTOINCREMENT SQLite
-        // Ini sering menjadi penyebab layar hitam/crash jika bernilai null
         data.remove('transaksi_id');
 
-        // Masukkan data transaksi
         int id = await txn.insert('transaksi', data);
 
-        // Ambil data kategori untuk menentukan tipe (PEMASUKAN/PENGELUARAN)
+        // Ambil data kategori untuk menentukan tipe
         final List<Map<String, dynamic>> kategoriRes = await txn.query(
           'kategori',
           where: 'kategori_id = ?',
@@ -27,8 +22,7 @@ class TransaksiService {
         );
 
         if (kategoriRes.isEmpty) {
-          throw Exception(
-              "Kategori dengan ID ${transaksi.kategoriId} tidak ditemukan");
+          throw Exception("Kategori tidak ditemukan");
         }
 
         String tipe = kategoriRes.first['tipe']?.toString().toUpperCase() ??
@@ -38,39 +32,30 @@ class TransaksiService {
         // UPDATE SALDO
         if (tipe == 'PENGELUARAN') {
           await txn.execute(
-            'UPDATE saldo SET total = total - ? WHERE saldo_id = ?',
-            [jumlah, transaksi.saldoId],
-          );
+              'UPDATE saldo SET total = total - ? WHERE saldo_id = ?',
+              [jumlah, transaksi.saldoId]);
         } else {
           await txn.execute(
-            'UPDATE saldo SET total = total + ? WHERE saldo_id = ?',
-            [jumlah, transaksi.saldoId],
-          );
+              'UPDATE saldo SET total = total + ? WHERE saldo_id = ?',
+              [jumlah, transaksi.saldoId]);
         }
 
-        // UPDATE TABUNGAN (Jika dipilih)
+        // UPDATE TABUNGAN (Jika ada)
         if (transaksi.tabunganId != null) {
           if (tipe == 'PENGELUARAN') {
-            // Jika belanja/pengeluaran dialokasikan ke tabungan, saldo tabungan bertambah
             await txn.execute(
-              'UPDATE tabungan SET jumlah = jumlah + ? WHERE tabungan_id = ?',
-              [jumlah, transaksi.tabunganId],
-            );
+                'UPDATE tabungan SET jumlah = jumlah + ? WHERE tabungan_id = ?',
+                [jumlah, transaksi.tabunganId]);
           } else {
-            // Jika pemasukan ditarik dari tabungan, saldo tabungan berkurang
             await txn.execute(
-              'UPDATE tabungan SET jumlah = jumlah - ? WHERE tabungan_id = ?',
-              [jumlah, transaksi.tabunganId],
-            );
+                'UPDATE tabungan SET jumlah = jumlah - ? WHERE tabungan_id = ?',
+                [jumlah, transaksi.tabunganId]);
           }
         }
-
         return id;
       });
     } catch (e) {
-      // Mencetak error ke console agar bisa dilacak
       debugPrint("Error pada insertTransaksi: $e");
-      // Melempar error kembali agar ditangkap oleh Try-Catch di UI (Halaman Tambah)
       rethrow;
     }
   }
@@ -113,13 +98,117 @@ class TransaksiService {
     return null;
   }
 
-  // 4. DELETE: Hapus Transaksi + Kembalikan Saldo (Opsional tapi disarankan)
+  // 4. UPDATE LENGKAP: Menangani perubahan field termasuk TABUNGAN
+  static Future<void> updateTransaksiLengkap({
+    required int id,
+    required String nama,
+    required double jumlah,
+    required int kategoriId,
+    required int saldoId,
+    int? tabunganId, // SEKARANG SUDAH MENDUKUNG TABUNGAN
+    required String tanggal,
+  }) async {
+    final db = await DBHelper.db();
+
+    try {
+      await db.transaction((txn) async {
+        // A. Ambil data lama untuk REVERSE (Membatalkan) efek saldo sebelumnya
+        final List<Map<String, dynamic>> trxLama = await txn.query(
+          'transaksi',
+          where: 'transaksi_id = ?',
+          whereArgs: [id],
+        );
+
+        if (trxLama.isEmpty) throw Exception("Transaksi tidak ditemukan");
+
+        double oldJumlah = (trxLama.first['jumlah'] as num).toDouble();
+        int oldSaldoId = trxLama.first['saldo_id'];
+        int oldKatId = trxLama.first['kategori_id'];
+        int? oldTabId = trxLama.first['tabungan_id'];
+
+        final List<Map<String, dynamic>> katLamaRes = await txn.query(
+          'kategori',
+          where: 'kategori_id = ?',
+          whereArgs: [oldKatId],
+        );
+        String oldTipe = katLamaRes.first['tipe'].toString().toUpperCase();
+
+        // --- PROSES REVERSE (KEMBALIKAN SALDO LAMA) ---
+        if (oldTipe == 'PENGELUARAN') {
+          await txn.execute(
+              'UPDATE saldo SET total = total + ? WHERE saldo_id = ?',
+              [oldJumlah, oldSaldoId]);
+          if (oldTabId != null) {
+            await txn.execute(
+                'UPDATE tabungan SET jumlah = jumlah - ? WHERE tabungan_id = ?',
+                [oldJumlah, oldTabId]);
+          }
+        } else {
+          await txn.execute(
+              'UPDATE saldo SET total = total - ? WHERE saldo_id = ?',
+              [oldJumlah, oldSaldoId]);
+          if (oldTabId != null) {
+            await txn.execute(
+                'UPDATE tabungan SET jumlah = jumlah + ? WHERE tabungan_id = ?',
+                [oldJumlah, oldTabId]);
+          }
+        }
+
+        // B. Terapkan efek DATA BARU
+        final List<Map<String, dynamic>> katBaruRes = await txn.query(
+          'kategori',
+          where: 'kategori_id = ?',
+          whereArgs: [kategoriId],
+        );
+        String newTipe = katBaruRes.first['tipe'].toString().toUpperCase();
+
+        if (newTipe == 'PENGELUARAN') {
+          await txn.execute(
+              'UPDATE saldo SET total = total - ? WHERE saldo_id = ?',
+              [jumlah, saldoId]);
+          if (tabunganId != null) {
+            await txn.execute(
+                'UPDATE tabungan SET jumlah = jumlah + ? WHERE tabungan_id = ?',
+                [jumlah, tabunganId]);
+          }
+        } else {
+          await txn.execute(
+              'UPDATE saldo SET total = total + ? WHERE saldo_id = ?',
+              [jumlah, saldoId]);
+          if (tabunganId != null) {
+            await txn.execute(
+                'UPDATE tabungan SET jumlah = jumlah - ? WHERE tabungan_id = ?',
+                [jumlah, tabunganId]);
+          }
+        }
+
+        // C. Update data di tabel transaksi
+        await txn.update(
+          'transaksi',
+          {
+            'nama': nama,
+            'jumlah': jumlah,
+            'kategori_id': kategoriId,
+            'saldo_id': saldoId,
+            'tabungan_id': tabunganId, // SEKARANG TERUPDATE DI DB
+            'tanggal': tanggal,
+          },
+          where: 'transaksi_id = ?',
+          whereArgs: [id],
+        );
+      });
+    } catch (e) {
+      debugPrint("Error pada updateTransaksiLengkap: $e");
+      rethrow;
+    }
+  }
+
+  // 5. DELETE: Hapus Transaksi + Kembalikan Saldo
   static Future<int> deleteTransaksi(int id) async {
     final db = await DBHelper.db();
 
     try {
       return await db.transaction((txn) async {
-        // Ambil data transaksi sebelum dihapus untuk tahu jumlahnya
         final List<Map<String, dynamic>> trx = await txn
             .query('transaksi', where: 'transaksi_id = ?', whereArgs: [id]);
 
@@ -127,27 +216,36 @@ class TransaksiService {
           final double jumlah = (trx.first['jumlah'] as num).toDouble();
           final int saldoId = trx.first['saldo_id'];
           final int katId = trx.first['kategori_id'];
+          final int? tabunganId = trx.first['tabungan_id'];
 
-          // Cari tipe kategorinya
           final List<Map<String, dynamic>> kat = await txn
               .query('kategori', where: 'kategori_id = ?', whereArgs: [katId]);
 
           if (kat.isNotEmpty) {
             String tipe = kat.first['tipe'].toString().toUpperCase();
-            // Kembalikan saldo (kebalikan dari saat insert)
+
             if (tipe == 'PENGELUARAN') {
               await txn.execute(
                   'UPDATE saldo SET total = total + ? WHERE saldo_id = ?',
                   [jumlah, saldoId]);
+              if (tabunganId != null) {
+                await txn.execute(
+                    'UPDATE tabungan SET jumlah = jumlah - ? WHERE tabungan_id = ?',
+                    [jumlah, tabunganId]);
+              }
             } else {
               await txn.execute(
                   'UPDATE saldo SET total = total - ? WHERE saldo_id = ?',
                   [jumlah, saldoId]);
+              if (tabunganId != null) {
+                await txn.execute(
+                    'UPDATE tabungan SET jumlah = jumlah + ? WHERE tabungan_id = ?',
+                    [jumlah, tabunganId]);
+              }
             }
           }
         }
 
-        // Baru hapus datanya
         return await txn.delete(
           'transaksi',
           where: 'transaksi_id = ?',

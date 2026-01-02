@@ -70,7 +70,7 @@ class _TabunganPageState extends State<TabunganPage> {
 
   // UI Dialog Form
   void _showFormDialog({Tabungan? tabungan}) {
-    bool isEdit = tabungan != null;
+    final bool isEdit = tabungan != null;
 
     if (isEdit) {
       _namaController.text = tabungan.nama;
@@ -86,41 +86,61 @@ class _TabunganPageState extends State<TabunganPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(isEdit ? 'Edit Tabungan' : 'Tambah Tabungan'),
+          title: Text(
+            isEdit ? "Edit Tabungan" : "Tambah Tabungan",
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: _namaController,
-                  decoration: const InputDecoration(labelText: 'Nama Tabungan'),
+                  decoration: const InputDecoration(
+                    labelText: "Nama Tabungan",
+                  ),
                 ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: _targetController,
-                  decoration:
-                      const InputDecoration(labelText: 'Target Jumlah (Rp)'),
                   keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Target Jumlah (Rp)",
+                  ),
                 ),
-                // Input saldo awal (opsional)
+                const SizedBox(height: 12),
                 TextField(
                   controller: _jumlahController,
-                  decoration: const InputDecoration(
-                    labelText: 'Saldo Terkumpul (Rp)',
-                    helperText: 'Diisi jika sudah ada tabungan awal',
-                  ),
                   keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Saldo Terkumpul (Rp)",
+                    helperText: "Diisi jika sudah ada tabungan awal",
+                  ),
                 ),
               ],
             ),
           ),
           actions: [
+            // ===== TOMBOL BATAL =====
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.black,
+                backgroundColor: Colors.white,
+              ),
+              child: const Text("Batal"),
             ),
+
+            // ===== TOMBOL SIMPAN =====
             ElevatedButton(
               onPressed: () => _simpanTabungan(tabungan: tabungan),
-              child: const Text('Simpan'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text("Simpan"),
             ),
           ],
         );

@@ -52,7 +52,6 @@ class _MenuPageState extends State<MenuPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Menu Lainnya"),
-        centerTitle: true,
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
       ),
@@ -98,9 +97,9 @@ class _MenuPageState extends State<MenuPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) => const SaldoPage()),
-                          ).then((_) =>
-                              _loadCounts()); // Refresh jumlah setelah kembali
+                              builder: (context) => const SaldoPage(),
+                            ),
+                          ).then((_) => _loadCounts());
                         },
                       ),
                     ],

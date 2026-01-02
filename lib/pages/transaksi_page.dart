@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/transaksi_service.dart';
+import '../db_helper.dart';
 import './tambah_transaksi_page.dart';
 
 class TransaksiPage extends StatefulWidget {
@@ -11,11 +12,18 @@ class TransaksiPage extends StatefulWidget {
 }
 
 class _TransaksiPageState extends State<TransaksiPage> {
-  // PERBAIKAN: Gunakan 'num' agar bisa menerima int maupun double
+  // Variabel penampung filter
+  String _selectedFilter = 'SEMUA';
+
   String formatRupiah(num nominal) {
     return NumberFormat.currency(
             locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
         .format(nominal);
+  }
+
+  Future<void> _handleRefresh() async {
+    setState(() {});
+    await Future.delayed(const Duration(milliseconds: 500));
   }
 
   void _refreshData() {
@@ -27,148 +35,392 @@ class _TransaksiPageState extends State<TransaksiPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Riwayat Transaksi'),
-        centerTitle: true,
+        centerTitle: false, // Perbaikan: AppBar tidak di center
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
       ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        // FutureBuilder akan memanggil ulang fungsi ini setiap kali setState dipanggil
-        future: TransaksiService.getAllTransaksi(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Column(
+        children: [
+          // --- TAMBAHAN: BARIS FILTER ---
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+            color: Colors.white,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildFilterButton('SEMUA'),
+                _buildFilterButton('PEMASUKAN'),
+                _buildFilterButton('PENGELUARAN'),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Text('Terjadi kesalahan: ${snapshot.error}',
-                    textAlign: TextAlign.center),
-              ),
-            );
-          }
+          // --- DAFTAR TRANSAKSI ---
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _handleRefresh,
+              color: Colors.teal,
+              child: FutureBuilder<List<Map<String, dynamic>>>(
+                future: TransaksiService.getAllTransaksi(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                        child: Text('Terjadi kesalahan: ${snapshot.error}'));
+                  }
 
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('Belum ada transaksi.'));
-          }
+                  // Logika Filter Data
+                  List<Map<String, dynamic>> listTransaksi =
+                      snapshot.data ?? [];
+                  if (_selectedFilter != 'SEMUA') {
+                    listTransaksi = listTransaksi
+                        .where((item) =>
+                            item['tipe']?.toString().toUpperCase() ==
+                            _selectedFilter)
+                        .toList();
+                  }
 
-          final listTransaksi = snapshot.data!;
+                  if (listTransaksi.isEmpty) {
+                    return ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        SizedBox(height: 100),
+                        Center(child: Text('Tidak ada transaksi.')),
+                      ],
+                    );
+                  }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(10),
-            itemCount: listTransaksi.length,
-            itemBuilder: (context, index) {
-              final item = listTransaksi[index];
-              try {
-                // PROTEKSI DATA NULL & TYPE CASTING
-                final String tipeRaw =
-                    item['tipe']?.toString() ?? 'PENGELUARAN';
-                final String tipe = tipeRaw.toUpperCase();
-                final bool isPemasukan = tipe == 'PEMASUKAN';
+                  return ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(10),
+                    itemCount: listTransaksi.length,
+                    itemBuilder: (context, index) {
+                      final item = listTransaksi[index];
+                      final bool isPemasukan =
+                          item['tipe']?.toString().toUpperCase() == 'PEMASUKAN';
 
-                final String namaSaldo = item['nama_saldo'] ?? 'Saldo';
-                final String namaKategori = item['nama_kategori'] ?? 'Kategori';
-
-                // PERBAIKAN: Konversi paksa ke double agar tidak error subtype
-                final double jumlah =
-                    (item['jumlah'] as num?)?.toDouble() ?? 0.0;
-
-                return Card(
-                  elevation: 3,
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor:
-                          isPemasukan ? Colors.green[100] : Colors.red[100],
-                      child: Icon(
-                        isPemasukan ? Icons.arrow_downward : Icons.arrow_upward,
-                        color: isPemasukan ? Colors.green : Colors.red,
-                      ),
-                    ),
-                    title: Text(
-                      namaKategori,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("${item['tanggal'] ?? '-'} • $namaSaldo",
-                            style: const TextStyle(fontSize: 12)),
-
-                        // Cek apakah ada data tabungan (Join berhasil)
-                        if (item['nama_tabungan'] != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                  color: Colors.blue[50],
-                                  borderRadius: BorderRadius.circular(4)),
-                              child: Text(
-                                "🎯 Tabungan: ${item['nama_tabungan']}",
-                                style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.blue,
-                                    fontWeight: FontWeight.bold),
-                              ),
+                      return Card(
+                        elevation: 3,
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: isPemasukan
+                                ? Colors.green[100]
+                                : Colors.red[100],
+                            child: Icon(
+                              isPemasukan
+                                  ? Icons.arrow_downward
+                                  : Icons.arrow_upward,
+                              color: isPemasukan ? Colors.green : Colors.red,
                             ),
                           ),
-                      ],
-                    ),
-                    trailing: Text(
-                      (isPemasukan ? "+ " : "- ") + formatRupiah(jumlah),
-                      style: TextStyle(
-                        color: isPemasukan ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    onLongPress: () {
-                      _konfirmasiHapus(item['transaksi_id']);
+                          title: Text(item['nama'] ?? '',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(
+                              "${item['nama_kategori']} • ${item['tanggal']}"),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                (isPemasukan ? "+ " : "- ") +
+                                    formatRupiah(item['jumlah']),
+                                style: TextStyle(
+                                    color:
+                                        isPemasukan ? Colors.green : Colors.red,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              // PERBAIKAN: Mengganti tombol edit menjadi Titik Tiga (PopupMenuButton)
+                              PopupMenuButton<String>(
+                                onSelected: (String value) {
+                                  if (value == 'detail') {
+                                    _showDetailTransaksi(item);
+                                  } else if (value == 'edit') {
+                                    _showEditDialog(item);
+                                  } else if (value == 'hapus') {
+                                    _konfirmasiHapus(item['transaksi_id']);
+                                  }
+                                },
+                                itemBuilder: (BuildContext context) => [
+                                  const PopupMenuItem(
+                                    value: 'detail',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.info_outline, size: 20),
+                                        SizedBox(width: 8),
+                                        Text('Detail'),
+                                      ],
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'edit',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.edit,
+                                            color: Colors.orange, size: 20),
+                                        SizedBox(width: 8),
+                                        Text('Edit'),
+                                      ],
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'hapus',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete,
+                                            color: Colors.red, size: 20),
+                                        SizedBox(width: 8),
+                                        Text('Hapus'),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
                     },
-                  ),
-                );
-              } catch (e, s) {
-                // error building list item (silently handled)
-                return Card(
-                  color: Colors.red[50],
-                  child: ListTile(
-                    title: Text('Error rendering transaksi #$index'),
-                    subtitle: Text(e.toString()),
-                  ),
-                );
-              }
-            },
-          );
-        },
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          // Navigasi dan tunggu kembalian dari pop(context, true)
-          final result = await Navigator.push(
+          await Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (context) => const TambahTransaksiPage()),
+              builder: (context) =>
+                  TambahTransaksiPage(onSaveSuccess: _refreshData),
+            ),
           );
-          // result returned from TambahTransaksiPage
-
-          // Jika result true, panggil _refreshData untuk trigger FutureBuilder
-          if (result == true) {
-            _refreshData();
-            // Tampilkan notifikasi sukses menggunakan konteks pemanggil (aman)
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Transaksi Berhasil Disimpan')),
-              );
-            }
-          }
+          _refreshData();
         },
         backgroundColor: Colors.teal,
         child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+
+  // Widget Helper untuk tombol filter
+  Widget _buildFilterButton(String label) {
+    bool isActive = _selectedFilter == label;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedFilter = label),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.teal : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- FUNGSI EDIT LENGKAP VIA ALERT DIALOG ---
+  void _showEditDialog(Map<String, dynamic> item) async {
+    final db = await DBHelper.db();
+
+    List<Map<String, dynamic>> categories = await db.query('kategori');
+    List<Map<String, dynamic>> balances = await db.query('saldo');
+    List<Map<String, dynamic>> savings = await db.query('tabungan');
+
+    final TextEditingController namaController =
+        TextEditingController(text: item['nama']);
+    final TextEditingController jumlahController =
+        TextEditingController(text: item['jumlah'].toString());
+
+    int? selectedKatId = item['kategori_id'];
+    int? selectedSaldoId = item['saldo_id'];
+    int? selectedTabId = item['tabungan_id'];
+    String selectedDate = item['tanggal'];
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Edit Transaksi'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: namaController,
+                      decoration:
+                          const InputDecoration(labelText: 'Keterangan'),
+                    ),
+                    TextField(
+                      controller: jumlahController,
+                      decoration: const InputDecoration(labelText: 'Nominal'),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 15),
+                    DropdownButtonFormField<int>(
+                      value: selectedKatId,
+                      decoration: const InputDecoration(labelText: 'Kategori'),
+                      items: categories.map((cat) {
+                        return DropdownMenuItem<int>(
+                          value: cat['kategori_id'],
+                          child: Text("${cat['nama']} (${cat['tipe']})"),
+                        );
+                      }).toList(),
+                      onChanged: (val) =>
+                          setDialogState(() => selectedKatId = val),
+                    ),
+                    DropdownButtonFormField<int>(
+                      value: selectedSaldoId,
+                      decoration:
+                          const InputDecoration(labelText: 'Sumber Saldo'),
+                      items: balances.map((s) {
+                        return DropdownMenuItem<int>(
+                          value: s['saldo_id'],
+                          child: Text(s['nama']),
+                        );
+                      }).toList(),
+                      onChanged: (val) =>
+                          setDialogState(() => selectedSaldoId = val),
+                    ),
+                    DropdownButtonFormField<int?>(
+                      value: selectedTabId,
+                      decoration: const InputDecoration(
+                          labelText: 'Pilih Tabungan (Opsional)'),
+                      items: [
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text("-- Tanpa Tabungan --"),
+                        ),
+                        ...savings.map((t) {
+                          return DropdownMenuItem<int?>(
+                            value: t['tabungan_id'],
+                            child: Text(t['nama']),
+                          );
+                        }),
+                      ],
+                      onChanged: (val) =>
+                          setDialogState(() => selectedTabId = val),
+                    ),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.calendar_today),
+                      title: Text(selectedDate),
+                      onTap: () async {
+                        DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.parse(selectedDate),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) {
+                          setDialogState(() => selectedDate =
+                              DateFormat('yyyy-MM-dd').format(picked));
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Batal')),
+                ElevatedButton(
+                  onPressed: () async {
+                    try {
+                      await TransaksiService.updateTransaksiLengkap(
+                        id: item['transaksi_id'],
+                        nama: namaController.text,
+                        jumlah: double.parse(jumlahController.text),
+                        kategoriId: selectedKatId!,
+                        saldoId: selectedSaldoId!,
+                        tabunganId: selectedTabId,
+                        tanggal: selectedDate,
+                      );
+                      if (!mounted) return;
+                      Navigator.pop(context);
+                      _refreshData();
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Gagal Update: $e')));
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+                  child: const Text('Simpan',
+                      style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- DETAIL & HAPUS ---
+  void _showDetailTransaksi(Map<String, dynamic> item) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Detail Transaksi",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Divider(height: 30),
+            _detailRow("Keterangan", item['nama']),
+            _detailRow("Nominal", formatRupiah(item['jumlah'])),
+            _detailRow("Kategori", item['nama_kategori']),
+            _detailRow("Tipe", item['tipe']),
+            _detailRow("Tanggal", item['tanggal']),
+            _detailRow("Sumber Saldo", item['nama_saldo']),
+            _detailRow("Tabungan", item['nama_tabungan'] ?? "Tidak Ada"),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  minimumSize: const Size(double.infinity, 45)),
+              child: const Text("Tutup", style: TextStyle(color: Colors.white)),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, dynamic value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey)),
+          Text(value?.toString() ?? "-",
+              style: const TextStyle(fontWeight: FontWeight.w500)),
+        ],
       ),
     );
   }
@@ -178,30 +430,17 @@ class _TransaksiPageState extends State<TransaksiPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Hapus Transaksi?'),
-        content: const Text(
-            'Menghapus riwayat akan mengupdate saldo kembali seperti semula.'),
+        content: const Text('Saldo akan dikembalikan secara otomatis.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal')),
           ElevatedButton(
             onPressed: () async {
-              try {
-                await TransaksiService.deleteTransaksi(id);
-                if (!mounted) return;
-                Navigator.pop(context); // Tutup dialog
-                _refreshData(); // Refresh list
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Transaksi dihapus')),
-                );
-              } catch (e) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Gagal menghapus: $e')),
-                );
-              }
+              await TransaksiService.deleteTransaksi(id);
+              if (!mounted) return;
+              Navigator.pop(context);
+              _refreshData();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Hapus', style: TextStyle(color: Colors.white)),

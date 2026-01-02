@@ -277,18 +277,35 @@ class _KategoriPageState extends State<KategoriPage> {
                           subtitle: Text(cat.tipe,
                               style: const TextStyle(
                                   color: Colors.black54)), // Warna teks hitam
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () => _showFormDialog(kategori: cat),
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (value) {
+                              if (value == 'edit') {
+                                _showFormDialog(kategori: cat);
+                              } else if (value == 'delete') {
+                                _showDeleteDialog(cat);
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit, size: 20, color: Colors.blue),
+                                    SizedBox(width: 8),
+                                    Text("Edit")
+                                  ],
+                                ),
                               ),
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _showDeleteDialog(cat),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete,
+                                        color: Colors.red, size: 20),
+                                    SizedBox(width: 8),
+                                    Text("Hapus")
+                                  ],
+                                ),
                               ),
                             ],
                           ),
