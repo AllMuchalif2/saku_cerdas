@@ -56,7 +56,7 @@ class _TransaksiPageState extends State<TransaksiPage> {
             ),
           ),
 
-          // --- BARIS FILTER WAKTU (TAMBAHAN BARU) ---
+          // --- BARIS FILTER WAKTU ---
           Container(
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             color: Colors.white,
@@ -107,7 +107,7 @@ class _TransaksiPageState extends State<TransaksiPage> {
                         .toList();
                   }
 
-                  // 2. Filter Waktu (Logic Baru)
+                  // 2. Filter Waktu
                   if (_selectedTimeFilter != 'SEMUA') {
                     listTransaksi = listTransaksi.where((item) {
                       try {
@@ -128,108 +128,139 @@ class _TransaksiPageState extends State<TransaksiPage> {
                     }).toList();
                   }
 
-                  if (listTransaksi.isEmpty) {
-                    return ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: const [
-                        SizedBox(height: 100),
-                        Center(child: Text('Tidak ada transaksi.')),
-                      ],
-                    );
+                  // --- LOGIKA SUMMARY CARD ---
+                  double totalPemasukan = 0;
+                  double totalPengeluaran = 0;
+                  for (var item in listTransaksi) {
+                    double jml = (item['jumlah'] as num).toDouble();
+                    if (item['tipe']?.toString().toUpperCase() == 'PEMASUKAN') {
+                      totalPemasukan += jml;
+                    } else {
+                      totalPengeluaran += jml;
+                    }
                   }
 
-                  return ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(10),
-                    itemCount: listTransaksi.length,
-                    itemBuilder: (context, index) {
-                      final item = listTransaksi[index];
-                      final bool isPemasukan =
-                          item['tipe']?.toString().toUpperCase() == 'PEMASUKAN';
+                  return Column(
+                    children: [
+                      // Widget Summary Card yang ditambahkan
+                      _buildSummaryCard(totalPemasukan, totalPengeluaran),
 
-                      return Card(
-                        elevation: 3,
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: isPemasukan
-                                ? Colors.green[100]
-                                : Colors.red[100],
-                            child: Icon(
-                              isPemasukan
-                                  ? Icons.arrow_downward
-                                  : Icons.arrow_upward,
-                              color: isPemasukan ? Colors.green : Colors.red,
-                            ),
-                          ),
-                          title: Text(item['nama'] ?? '',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(
-                              "${item['nama_kategori']} • ${item['tanggal']}"),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                (isPemasukan ? "+ " : "- ") +
-                                    formatRupiah(item['jumlah']),
-                                style: TextStyle(
-                                    color:
-                                        isPemasukan ? Colors.green : Colors.red,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                              PopupMenuButton<String>(
-                                onSelected: (String value) {
-                                  if (value == 'detail') {
-                                    _showDetailTransaksi(item);
-                                  } else if (value == 'edit') {
-                                    _showEditDialog(item);
-                                  } else if (value == 'hapus') {
-                                    _konfirmasiHapus(item['transaksi_id']);
-                                  }
-                                },
-                                itemBuilder: (BuildContext context) => [
-                                  const PopupMenuItem(
-                                    value: 'detail',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.info_outline, size: 20),
-                                        SizedBox(width: 8),
-                                        Text('Detail'),
-                                      ],
-                                    ),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'edit',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.edit,
-                                            color: Colors.orange, size: 20),
-                                        SizedBox(width: 8),
-                                        Text('Edit'),
-                                      ],
-                                    ),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'hapus',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.delete,
-                                            color: Colors.red, size: 20),
-                                        SizedBox(width: 8),
-                                        Text('Hapus'),
-                                      ],
-                                    ),
-                                  ),
+                      Expanded(
+                        child: listTransaksi.isEmpty
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: const [
+                                  SizedBox(height: 100),
+                                  Center(child: Text('Tidak ada transaksi.')),
                                 ],
+                              )
+                            : ListView.builder(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 10),
+                                itemCount: listTransaksi.length,
+                                itemBuilder: (context, index) {
+                                  final item = listTransaksi[index];
+                                  final bool isPemasukan =
+                                      item['tipe']?.toString().toUpperCase() ==
+                                          'PEMASUKAN';
+
+                                  return Card(
+                                    elevation: 2,
+                                    margin:
+                                        const EdgeInsets.symmetric(vertical: 6),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12)),
+                                    child: ListTile(
+                                      leading: CircleAvatar(
+                                        backgroundColor: isPemasukan
+                                            ? Colors.green[100]
+                                            : Colors.red[100],
+                                        child: Icon(
+                                          isPemasukan
+                                              ? Icons.arrow_downward
+                                              : Icons.arrow_upward,
+                                          color: isPemasukan
+                                              ? Colors.green
+                                              : Colors.red,
+                                        ),
+                                      ),
+                                      title: Text(item['nama'] ?? '',
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold)),
+                                      subtitle: Text(
+                                          "${item['nama_kategori']} • ${item['tanggal']}"),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            (isPemasukan ? "+ " : "- ") +
+                                                formatRupiah(item['jumlah']),
+                                            style: TextStyle(
+                                                color: isPemasukan
+                                                    ? Colors.green
+                                                    : Colors.red,
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                          PopupMenuButton<String>(
+                                            onSelected: (String value) {
+                                              if (value == 'detail') {
+                                                _showDetailTransaksi(item);
+                                              } else if (value == 'edit') {
+                                                _showEditDialog(item);
+                                              } else if (value == 'hapus') {
+                                                _konfirmasiHapus(
+                                                    item['transaksi_id']);
+                                              }
+                                            },
+                                            itemBuilder:
+                                                (BuildContext context) => [
+                                              const PopupMenuItem(
+                                                value: 'detail',
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.info_outline,
+                                                        size: 20),
+                                                    SizedBox(width: 8),
+                                                    Text('Detail'),
+                                                  ],
+                                                ),
+                                              ),
+                                              const PopupMenuItem(
+                                                value: 'edit',
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.edit,
+                                                        color: Colors.orange,
+                                                        size: 20),
+                                                    SizedBox(width: 8),
+                                                    Text('Edit'),
+                                                  ],
+                                                ),
+                                              ),
+                                              const PopupMenuItem(
+                                                value: 'hapus',
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.delete,
+                                                        color: Colors.red,
+                                                        size: 20),
+                                                    SizedBox(width: 8),
+                                                    Text('Hapus'),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                      ),
+                    ],
                   );
                 },
               ),
@@ -237,19 +268,60 @@ class _TransaksiPageState extends State<TransaksiPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  TambahTransaksiPage(onSaveSuccess: _refreshData),
+    );
+  }
+
+  // Widget Helper untuk Summary Card
+  Widget _buildSummaryCard(double income, double expense) {
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.teal.shade700,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.3),
+            spreadRadius: 2,
+            blurRadius: 5,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Pemasukan",
+                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+                const SizedBox(height: 4),
+                Text(formatRupiah(income),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15)),
+              ],
             ),
-          );
-          _refreshData();
-        },
-        backgroundColor: Colors.teal,
-        child: const Icon(Icons.add, color: Colors.white),
+          ),
+          Container(height: 30, width: 1, color: Colors.white24),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                const Text("Pengeluaran",
+                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+                const SizedBox(height: 4),
+                Text(formatRupiah(expense),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -302,7 +374,7 @@ class _TransaksiPageState extends State<TransaksiPage> {
     );
   }
 
-  // --- FUNGSI EDIT, DETAIL, DAN HAPUS TETAP SAMA ---
+  // --- FUNGSI EDIT, DETAIL, DAN HAPUS ---
   void _showEditDialog(Map<String, dynamic> item) async {
     final db = await DBHelper.db();
 

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../services/kategori_service.dart';
 import '../services/saldo_service.dart';
-// Tambahkan import service baru
 import '../services/transaksi_service.dart';
 import '../services/tabungan_service.dart';
 
-// Tambahkan import halaman tujuan di sini
 import './kategori_page.dart';
 import './saldo_page.dart';
+import './about_page.dart';
 
 class MenuPage extends StatefulWidget {
   const MenuPage({Key? key}) : super(key: key);
@@ -47,7 +47,53 @@ class _MenuPageState extends State<MenuPage> {
     }
   }
 
-  // --- LOGIKA BARU UNTUK HAPUS DATA ---
+  //Notif
+  void _showCenterNotif(String message, {bool success = true}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        // Timer otomatis menutup dialog setelah 1.5 detik
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          if (context.mounted && Navigator.canPop(context)) {
+            Navigator.of(context).pop();
+          }
+        });
+
+        return Dialog(
+          backgroundColor: success ? Colors.teal : Colors.red,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // Ukuran menyesuaikan isi
+              children: [
+                Icon(
+                  success ? Icons.check_circle : Icons.warning_amber_rounded,
+                  color: Colors.white,
+                  size: 50,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // --- LOGIKA HAPUS DATA ---
 
   // 1. Menampilkan Menu Pengaturan
   void _showSettingsMenu() {
@@ -78,8 +124,8 @@ class _MenuPageState extends State<MenuPage> {
                 ),
                 subtitle: const Text("Reset aplikasi ke pengaturan awal"),
                 onTap: () {
-                  Navigator.pop(context); // Tutup bottom sheet
-                  _showDeleteConfirmation(); // Tampilkan dialog konfirmasi
+                  Navigator.pop(context);
+                  _showDeleteConfirmation();
                 },
               ),
               const SizedBox(height: 16),
@@ -116,37 +162,32 @@ class _MenuPageState extends State<MenuPage> {
     );
   }
 
-  // 3. Proses Penghapusan Data (DIPERBARUI)
+  // 3. Proses Penghapusan Data (DIPERBARUI DENGAN NOTIFIKASI TENGAH)
   Future<void> _performDeleteAll() async {
     setState(() => _isLoading = true);
     try {
-      // URUTAN PENTING: Hapus data anak (Transaksi) dulu, baru data induk
       await TransaksiService.deleteAllTransaksi();
       await TabunganService.deleteAllTabungan();
       await KategoriService.deleteAllKategori();
       await SaldoService.deleteAllSaldo();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Semua data berhasil dihapus (Reset Total)"),
-            backgroundColor: Colors.red,
-          ),
-        );
-        _loadCounts(); // Refresh counter menjadi 0
+        _loadCounts();
+
+        // Panggil Notifikasi Tengah (Sukses)
+        _showCenterNotif("Semua data berhasil dihapus (Reset Total)",
+            success: true);
       }
     } catch (e) {
       debugPrint("Error deleting data: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Gagal menghapus data: $e")),
-        );
         setState(() => _isLoading = false);
+
+        // Panggil Notifikasi Tengah (Gagal)
+        _showCenterNotif("Gagal menghapus data: $e", success: false);
       }
     }
   }
-
-  // --- AKHIR LOGIKA BARU ---
 
   @override
   Widget build(BuildContext context) {
@@ -212,13 +253,15 @@ class _MenuPageState extends State<MenuPage> {
                   ListTile(
                     leading: const Icon(Icons.settings),
                     title: const Text("Pengaturan Aplikasi"),
-                    // PANGGIL FUNGSI MENU DI SINI
                     onTap: _showSettingsMenu,
                   ),
                   ListTile(
                     leading: const Icon(Icons.info_outline),
                     title: const Text("Tentang Saku Cerdas"),
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(context,
+                          MaterialPageRoute(builder: (context) => AboutPage()));
+                    },
                   ),
                 ],
               ),

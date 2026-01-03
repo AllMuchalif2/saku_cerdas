@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart'; // Diperlukan untuk NumberFormat
 import '../services/transaksi_service.dart';
 import '../services/kategori_service.dart';
 import '../services/saldo_service.dart';
@@ -15,6 +16,28 @@ class TambahTransaksiPage extends StatefulWidget {
 
   @override
   State<TambahTransaksiPage> createState() => _TambahTransaksiPageState();
+}
+
+// FORMATTER CUSTOM UNTUK RUPIAH
+class CurrencyInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.selection.baseOffset == 0) return newValue;
+
+    // Ambil angka saja
+    String cleanText = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanText.isEmpty) return newValue.copyWith(text: '');
+
+    double value = double.parse(cleanText);
+    final formatter =
+        NumberFormat.decimalPattern('id'); // Format Indonesia (titik)
+    String newText = formatter.format(value);
+
+    return newValue.copyWith(
+        text: newText,
+        selection: TextSelection.collapsed(offset: newText.length));
+  }
 }
 
 class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
@@ -40,6 +63,48 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
     super.initState();
     _tanggalController.text = DateTime.now().toString().split(' ')[0];
     _loadAllData();
+  }
+
+  // 🔔 FUNGSI NOTIFIKASI CUSTOM
+  void showCenterNotif(String pesan, {bool success = true}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) {
+        Future.delayed(const Duration(seconds: 2), () {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+        });
+
+        return AlertDialog(
+          backgroundColor: success ? Colors.teal : Colors.redAccent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Row(
+            children: [
+              Icon(
+                success ? Icons.check_circle : Icons.error,
+                color: Colors.white,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  pesan,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _loadAllData() async {
@@ -69,42 +134,25 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
   void _simpanTransaksi() async {
     if (_formKey.currentState!.validate()) {
       if (_selectedKategoriId == null || _selectedSaldoId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Kategori dan Jenis Saldo wajib dipilih!')),
-        );
+        showCenterNotif("Kategori dan Saldo wajib dipilih!", success: false);
         return;
       }
 
-      // Ambil input nominal dan data terpilih
-      final nominalInput = double.tryParse(_nominalController.text) ?? 0.0;
+      // MODIFIKASI: Hilangkan titik sebelum parse ke double
+      final String cleanNominal = _nominalController.text.replaceAll('.', '');
+      final nominalInput = double.tryParse(cleanNominal) ?? 0.0;
+
       final kategoriTerpilih =
           _kategoriList.firstWhere((k) => k.kategoriId == _selectedKategoriId);
       final saldoTerpilih =
           _saldoList.firstWhere((s) => s.saldoId == _selectedSaldoId);
 
-      // VALIDASI: Cek jika kategori adalah Pengeluaran
       if (kategoriTerpilih.tipe.toLowerCase() == 'pengeluaran' ||
           kategoriTerpilih.tipe.toLowerCase() == 'keluar') {
-        // Membandingkan nominal input dengan saldoTerpilih.total
         if (nominalInput > saldoTerpilih.total) {
-          showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: const Text("Saldo Anda Tidak Mencukupi"),
-              content: Text(
-                  "Saldo '${saldoTerpilih.nama}' tidak cukup untuk melakukan transaksi ini.\n\n"
-                  "Sisa Saldo: Rp ${saldoTerpilih.total}\n"
-                  "Nominal Transaksi: Rp ${nominalInput.toInt()}"),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text("OK"),
-                )
-              ],
-            ),
-          );
-          return; // Hentikan proses simpan
+          showCenterNotif("Saldo '${saldoTerpilih.nama}' tidak cukup!",
+              success: false);
+          return;
         }
       }
 
@@ -124,28 +172,20 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
 
         if (mounted) {
           setState(() => _isSubmitting = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Transaksi Berhasil Disimpan')),
-          );
-          widget.onSaveSuccess?.call();
-          Navigator.pop(context, true);
+
+          showCenterNotif("Transaksi Berhasil Disimpan");
+
+          Future.delayed(const Duration(milliseconds: 1500), () {
+            if (mounted) {
+              widget.onSaveSuccess?.call();
+              Navigator.pop(context, true);
+            }
+          });
         }
       } catch (e) {
         if (mounted) {
           setState(() => _isSubmitting = false);
-          showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: const Text("Gagal Simpan"),
-              content: Text("Terjadi kesalahan database: $e"),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text("OK"),
-                )
-              ],
-            ),
-          );
+          showCenterNotif("Gagal menyimpan data", success: false);
         }
       }
     }
@@ -172,7 +212,6 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // INPUT KETERANGAN
                           TextFormField(
                             controller: _namaController,
                             decoration: const InputDecoration(
@@ -184,8 +223,6 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                                 : null,
                           ),
                           const SizedBox(height: 16),
-
-                          // DROP DOWN KATEGORI
                           DropdownButtonFormField<int>(
                             value: _selectedKategoriId,
                             decoration: const InputDecoration(
@@ -204,13 +241,12 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                                 val == null ? 'Pilih kategori' : null,
                           ),
                           const SizedBox(height: 16),
-
-                          // INPUT NOMINAL
                           TextFormField(
                             controller: _nominalController,
                             keyboardType: TextInputType.number,
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
+                              CurrencyInputFormatter(), // TAMBAHKAN FORMATTER DI SINI
                             ],
                             decoration: const InputDecoration(
                               labelText: "Nominal Transaksi",
@@ -225,8 +261,6 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                             },
                           ),
                           const SizedBox(height: 16),
-
-                          // DROP DOWN SALDO
                           DropdownButtonFormField<int>(
                             value: _selectedSaldoId,
                             decoration: const InputDecoration(
@@ -236,9 +270,8 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                             items: _saldoList.map((s) {
                               return DropdownMenuItem<int>(
                                 value: s.saldoId,
-                                // Menggunakan s.total sesuai model Anda
-                                child:
-                                    Text("${s.nama} (Tersedia: Rp ${s.total})"),
+                                child: Text(
+                                    "${s.nama} (Tersedia: Rp ${NumberFormat.decimalPattern('id').format(s.total)})"),
                               );
                             }).toList(),
                             onChanged: (val) =>
@@ -247,8 +280,6 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                                 val == null ? 'Pilih jenis saldo' : null,
                           ),
                           const SizedBox(height: 16),
-
-                          // DROP DOWN TABUNGAN
                           DropdownButtonFormField<int?>(
                             value: _selectedTabunganId,
                             decoration: const InputDecoration(
@@ -271,8 +302,6 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                                 setState(() => _selectedTabunganId = val),
                           ),
                           const SizedBox(height: 16),
-
-                          // INPUT TANGGAL
                           TextFormField(
                             controller: _tanggalController,
                             readOnly: true,
@@ -297,7 +326,6 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
                             },
                           ),
                           const SizedBox(height: 30),
-
                           ElevatedButton(
                             onPressed: _isSubmitting ? null : _simpanTransaksi,
                             style: ElevatedButton.styleFrom(

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import '../models/saldo.dart';
 import '../services/saldo_service.dart';
 
@@ -7,6 +9,32 @@ class SaldoPage extends StatefulWidget {
 
   @override
   State<SaldoPage> createState() => _SaldoPageState();
+}
+
+/* ================================
+   FORMAT INPUT RUPIAH (AUTO TITIK)
+================================ */
+class ThousandsFormatter extends TextInputFormatter {
+  final NumberFormat _formatter = NumberFormat.decimalPattern('id');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    final number = int.parse(newValue.text.replaceAll('.', ''));
+
+    final newText = _formatter.format(number);
+
+    return TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newText.length),
+    );
+  }
 }
 
 class _SaldoPageState extends State<SaldoPage> {
@@ -25,6 +53,12 @@ class _SaldoPageState extends State<SaldoPage> {
       listSaldo = data;
       loading = false;
     });
+  }
+
+  // 🔢 FORMAT RUPIAH UNTUK TAMPILAN
+  String formatRupiah(int angka) {
+    final formatter = NumberFormat.decimalPattern('id');
+    return formatter.format(angka);
   }
 
   // 🔔 NOTIF TENGAH LAYAR
@@ -90,8 +124,10 @@ class _SaldoPageState extends State<SaldoPage> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
             onPressed: () async {
               if (controller.text.trim().isEmpty) {
-                showCenterNotif("Nama saldo tidak boleh kosong",
-                    success: false);
+                showCenterNotif(
+                  "Nama saldo tidak boleh kosong",
+                  success: false,
+                );
                 return;
               }
 
@@ -128,8 +164,10 @@ class _SaldoPageState extends State<SaldoPage> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
             onPressed: () async {
               if (controller.text.trim().isEmpty) {
-                showCenterNotif("Nama saldo tidak boleh kosong",
-                    success: false);
+                showCenterNotif(
+                  "Nama saldo tidak boleh kosong",
+                  success: false,
+                );
                 return;
               }
 
@@ -152,7 +190,7 @@ class _SaldoPageState extends State<SaldoPage> {
     );
   }
 
-  // 💸 ISI SALDO
+  // 💸 ISI SALDO (FORMAT INPUT)
   void isiSaldoDialog(Saldo saldo) async {
     final controller = TextEditingController();
     await showDialog(
@@ -163,6 +201,10 @@ class _SaldoPageState extends State<SaldoPage> {
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            ThousandsFormatter(),
+          ],
           decoration: const InputDecoration(
             labelText: "Nominal Top Up",
             prefixText: "Rp ",
@@ -176,9 +218,16 @@ class _SaldoPageState extends State<SaldoPage> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
             onPressed: () async {
-              final nominal = int.tryParse(controller.text) ?? 0;
+              final nominal = int.tryParse(
+                    controller.text.replaceAll('.', ''),
+                  ) ??
+                  0;
+
               if (nominal <= 0) {
-                showCenterNotif("Nominal tidak valid", success: false);
+                showCenterNotif(
+                  "Nominal tidak valid",
+                  success: false,
+                );
                 return;
               }
 
@@ -229,13 +278,19 @@ class _SaldoPageState extends State<SaldoPage> {
                     final s = listSaldo[i];
                     return Card(
                       margin: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       child: ListTile(
                         title: Text(
                           s.nama,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        subtitle: Text("Rp ${s.total}"),
+                        subtitle: Text(
+                          "Rp ${formatRupiah(s.total)}",
+                        ),
                         trailing: PopupMenuButton(
                           onSelected: (value) {
                             if (value == 'isi') {

@@ -23,6 +23,49 @@ class _KategoriPageState extends State<KategoriPage> {
     _refreshCategories();
   }
 
+  // Custom Notification
+  void showCenterNotif(String pesan, {bool success = true}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) {
+        Future.delayed(const Duration(seconds: 2), () {
+          // Use root navigator to pop dialog
+          if (Navigator.of(context, rootNavigator: true).canPop()) {
+            Navigator.of(context, rootNavigator: true).pop();
+          }
+        });
+
+        return AlertDialog(
+          backgroundColor: success ? Colors.teal : Colors.red,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Row(
+            children: [
+              Icon(
+                success ? Icons.check_circle : Icons.error,
+                color: Colors.white,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  pesan,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _refreshCategories() async {
     setState(() => _isLoading = true);
     final data = await KategoriService.getAllKategori();
@@ -39,15 +82,14 @@ class _KategoriPageState extends State<KategoriPage> {
 
     final String nama = _namaController.text.trim();
     final bool isEdit = kategori != null;
+    final navigator = Navigator.of(context);
 
     try {
       if (!isEdit) {
-        // Tambah baru
         await KategoriService.addKategori(
           KategoriModel(nama: nama, tipe: _selectedTipe),
         );
       } else {
-        // Update
         await KategoriService.updateKategori(
           KategoriModel(
             kategoriId: kategori.kategoriId,
@@ -58,30 +100,20 @@ class _KategoriPageState extends State<KategoriPage> {
       }
 
       if (!mounted) return;
-      Navigator.of(context).pop(); // Pop form dialog
+      navigator.pop(); // Pop form dialog
       _refreshCategories();
 
-      // Show success dialog
-      showDialog(
-        context: this.context, // Use page's context
-        builder: (ctx) => AlertDialog(
-          title: const Text('Berhasil'),
-          content: Text(isEdit
-              ? 'Kategori berhasil diubah.'
-              : 'Kategori berhasil ditambahkan.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      final message = isEdit
+          ? 'Kategori berhasil diubah.'
+          : 'Kategori berhasil ditambahkan';
+      showCenterNotif(message);
     } catch (e) {
-      // Kesalahan umum (misal: masalah koneksi db)
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Terjadi kesalahan: $e')),
-      );
+      if (e.toString().contains('Nama kategori sudah ada.')) {
+        showCenterNotif('Nama kategori ini sudah ada dan aktif.',
+            success: false);
+      } else {
+        showCenterNotif('Terjadi kesalahan: $e', success: false);
+      }
     }
   }
 
@@ -131,26 +163,6 @@ class _KategoriPageState extends State<KategoriPage> {
                           if (value == null || value.trim().isEmpty) {
                             return 'Nama kategori tidak boleh kosong';
                           }
-                          final trimmedValue = value.trim();
-
-                          final isDuplicate = _categories.any(
-                            (cat) =>
-                                cat.nama.toLowerCase() ==
-                                trimmedValue.toLowerCase(),
-                          );
-
-                          if (isEdit) {
-                            if (kategori.nama.toLowerCase() !=
-                                    trimmedValue.toLowerCase() &&
-                                isDuplicate) {
-                              return 'Nama kategori sudah ada.';
-                            }
-                          } else {
-                            if (isDuplicate) {
-                              return 'Nama kategori sudah ada.';
-                            }
-                          }
-
                           return null;
                         },
                       ),
@@ -219,25 +231,12 @@ class _KategoriPageState extends State<KategoriPage> {
           ),
           TextButton(
             onPressed: () async {
+              final navigator = Navigator.of(ctx);
               await KategoriService.softDeleteKategori(kategori.kategoriId!);
               if (!mounted) return;
-              Navigator.pop(ctx); // Pop confirm dialog
+              navigator.pop(); // Pop confirm dialog
               _refreshCategories();
-
-              // Show success dialog
-              showDialog(
-                context: this.context, // Use page's context
-                builder: (dialogContext) => AlertDialog(
-                  title: const Text('Berhasil'),
-                  content: const Text('Kategori berhasil dihapus.'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(dialogContext),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-              );
+              showCenterNotif('Kategori berhasil dihapus.');
             },
             child: const Text("Hapus", style: TextStyle(color: Colors.red)),
           ),
@@ -305,7 +304,8 @@ class _KategoriPageState extends State<KategoriPage> {
                                 value: 'edit',
                                 child: Row(
                                   children: [
-                                    Icon(Icons.edit, size: 20, color: Colors.blue),
+                                    Icon(Icons.edit,
+                                        size: 20, color: Colors.blue),
                                     SizedBox(width: 8),
                                     Text("Edit")
                                   ],

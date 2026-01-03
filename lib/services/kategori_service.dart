@@ -3,14 +3,48 @@ import '../db_helper.dart';
 import '../models/kategori.dart';
 
 class KategoriService {
-  // CREATE
+  // CREATE OR UNDELETE
   static Future<int> addKategori(KategoriModel kategori) async {
     final db = await DBHelper.db();
-    return await db.insert(
+
+    final existingKategori = await _findByName(kategori.nama);
+
+    if (existingKategori != null) {
+      if (existingKategori.is_deleted == 1) {
+        return await db.update(
+          'kategori',
+          {
+            'is_deleted': 0,
+            'tipe': kategori.tipe,
+          },
+          where: 'kategori_id = ?',
+          whereArgs: [existingKategori.kategoriId],
+        );
+      } else {
+        throw Exception('Nama kategori sudah ada.');
+      }
+    } else {
+      return await db.insert(
+        'kategori',
+        kategori.toMap(),
+      );
+    }
+  }
+
+  // READ ONE BY NAME (Termasuk yang di-soft-delete)
+  static Future<KategoriModel?> _findByName(String nama) async {
+    final db = await DBHelper.db();
+    final List<Map<String, dynamic>> maps = await db.query(
       'kategori',
-      kategori.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.fail,
+      where: 'LOWER(nama) = LOWER(?)',
+      whereArgs: [nama],
+      limit: 1,
     );
+
+    if (maps.isNotEmpty) {
+      return KategoriModel.fromMap(maps.first);
+    }
+    return null;
   }
 
   // READ ALL (Hanya yang tidak di-soft delete)

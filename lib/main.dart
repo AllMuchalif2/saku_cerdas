@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:saku_cerdas/pages/navigasi_page.dart';
+import 'pages/navigasi_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
