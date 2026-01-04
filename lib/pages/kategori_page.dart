@@ -23,7 +23,7 @@ class _KategoriPageState extends State<KategoriPage> {
     _refreshCategories();
   }
 
-  // Custom Notification
+  // Custom Notification for Success and Error
   void showCenterNotif(String pesan, {bool success = true}) {
     showDialog(
       context: context,
@@ -66,6 +66,7 @@ class _KategoriPageState extends State<KategoriPage> {
     );
   }
 
+// refresh
   Future<void> _refreshCategories() async {
     setState(() => _isLoading = true);
     final data = await KategoriService.getAllKategori();
@@ -75,6 +76,7 @@ class _KategoriPageState extends State<KategoriPage> {
     });
   }
 
+// simpan
   Future<void> _simpanKategori({KategoriModel? kategori}) async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -100,23 +102,19 @@ class _KategoriPageState extends State<KategoriPage> {
       }
 
       if (!mounted) return;
-      navigator.pop(); // Pop form dialog
+      navigator.pop();
       _refreshCategories();
 
       final message = isEdit
           ? 'Kategori berhasil diubah.'
-          : 'Kategori berhasil ditambahkan';
-      showCenterNotif(message);
+          : 'Kategori berhasil ditambahkan.';
+      showCenterNotif(message, success: true);
     } catch (e) {
-      if (e.toString().contains('Nama kategori sudah ada.')) {
-        showCenterNotif('Nama kategori ini sudah ada dan aktif.',
-            success: false);
-      } else {
-        showCenterNotif('Terjadi kesalahan: $e', success: false);
-      }
+      showCenterNotif('Terjadi kesalahan: $e', success: false);
     }
   }
 
+// form edit / tambah
   void _showFormDialog({KategoriModel? kategori}) {
     bool isEdit = kategori != null;
 
@@ -163,6 +161,18 @@ class _KategoriPageState extends State<KategoriPage> {
                           if (value == null || value.trim().isEmpty) {
                             return 'Nama kategori tidak boleh kosong';
                           }
+                          final trimmedValue = value.trim().toLowerCase();
+                          final isDuplicate = _categories.any((cat) {
+                            // When editing, exclude the current category from the check
+                            if (isEdit &&
+                                cat.kategoriId == kategori?.kategoriId) {
+                              return false;
+                            }
+                            return cat.nama.toLowerCase() == trimmedValue;
+                          });
+                          if (isDuplicate) {
+                            return 'Nama kategori ini sudah ada.';
+                          }
                           return null;
                         },
                       ),
@@ -171,7 +181,7 @@ class _KategoriPageState extends State<KategoriPage> {
                         value: _selectedTipe,
                         style: const TextStyle(color: Colors.black),
                         decoration: const InputDecoration(
-                          labelText: 'Tipe Transaksi',
+                          labelText: 'Tipe Kategori',
                           labelStyle: TextStyle(color: Colors.black54),
                           border: OutlineInputBorder(),
                           focusedBorder: OutlineInputBorder(
@@ -217,6 +227,7 @@ class _KategoriPageState extends State<KategoriPage> {
     );
   }
 
+// konfirmasi delete
   void _showDeleteDialog(KategoriModel kategori) {
     showDialog(
       context: context,
@@ -236,7 +247,7 @@ class _KategoriPageState extends State<KategoriPage> {
               if (!mounted) return;
               navigator.pop(); // Pop confirm dialog
               _refreshCategories();
-              showCenterNotif('Kategori berhasil dihapus.');
+              showCenterNotif('Kategori berhasil dihapus.', success: true);
             },
             child: const Text("Hapus", style: TextStyle(color: Colors.red)),
           ),
@@ -287,10 +298,9 @@ class _KategoriPageState extends State<KategoriPage> {
                           title: Text(cat.nama,
                               style: const TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black)), // Warna teks hitam
+                                  color: Colors.black)),
                           subtitle: Text(cat.tipe,
-                              style: const TextStyle(
-                                  color: Colors.black54)), // Warna teks hitam
+                              style: const TextStyle(color: Colors.black54)),
                           trailing: PopupMenuButton<String>(
                             onSelected: (value) {
                               if (value == 'edit') {

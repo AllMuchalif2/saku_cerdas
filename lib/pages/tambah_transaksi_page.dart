@@ -12,7 +12,8 @@ import '../models/tabungan.dart';
 
 class TambahTransaksiPage extends StatefulWidget {
   final VoidCallback? onSaveSuccess;
-  const TambahTransaksiPage({super.key, this.onSaveSuccess});
+  final Map<String, dynamic>? initialData; // Data dari AI
+  const TambahTransaksiPage({super.key, this.onSaveSuccess, this.initialData});
 
   @override
   State<TambahTransaksiPage> createState() => _TambahTransaksiPageState();
@@ -61,7 +62,6 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
   @override
   void initState() {
     super.initState();
-    _tanggalController.text = DateTime.now().toString().split(' ')[0];
     _loadAllData();
   }
 
@@ -124,6 +124,35 @@ class _TambahTransaksiPageState extends State<TambahTransaksiPage> {
         _saldoList = results[1] as List<Saldo>;
         _tabunganList = results[2] as List<Tabungan>;
         _isLoading = false;
+
+        // --- LOGIKA PRE-FILL DARI AI ---
+        if (widget.initialData != null) {
+          final data = widget.initialData!;
+
+          // 1. Nama
+          _namaController.text = data['nama'] ?? '';
+
+          // 2. Nominal (Format ke tampilan Rupiah: 15000 -> 15.000)
+          if (data['jumlah'] != null) {
+            double val = (data['jumlah'] as num).toDouble();
+            _nominalController.text =
+                NumberFormat.decimalPattern('id').format(val);
+          }
+
+          // 3. ID Selection (Pastikan ID ada di list yang baru di-load)
+          _selectedKategoriId = data['kategori_id'];
+          _selectedSaldoId = data['saldo_id'];
+          _selectedTabunganId = data['tabungan_id'];
+
+          // 4. Tanggal
+          if (data['tanggal'] != null) {
+            _tanggalController.text = data['tanggal'];
+          } else {
+            _tanggalController.text = DateTime.now().toString().split(' ')[0];
+          }
+        } else {
+          _tanggalController.text = DateTime.now().toString().split(' ')[0];
+        }
       });
     } catch (e) {
       debugPrint("Error loading data: $e");

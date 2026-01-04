@@ -9,8 +9,9 @@ import '../services/tabungan_service.dart';
 import '../services/transaksi_service.dart';
 
 import './saldo_page.dart';
-import './tabungan_page.dart';
-import './transaksi_page.dart';
+
+import './tambah_transaksi_page.dart';
+import '../widgets/chat_ai_modal.dart';
 
 class HomePage extends StatefulWidget {
   final Function(int) onNavigateToTab;
@@ -74,6 +75,27 @@ class _HomePageState extends State<HomePage> {
     return NumberFormat.currency(
             locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
         .format(amount);
+  }
+
+  // Fungsi membuka Chat AI
+  void _showChatAI() async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => const ChatAIModal(),
+    );
+
+    if (result != null && mounted) {
+      // Navigate ke Form dengan data hasil AI
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TambahTransaksiPage(
+            initialData: result,
+            onSaveSuccess: _loadDashboardData,
+          ),
+        ),
+      ).then((_) => _loadDashboardData());
+    }
   }
 
   @override
@@ -296,6 +318,13 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showChatAI,
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.smart_toy_outlined),
+        label: const Text("Chat AI"),
       ),
     );
   }

@@ -10,7 +10,7 @@ class KategoriService {
     final existingKategori = await _findByName(kategori.nama);
 
     if (existingKategori != null) {
-      if (existingKategori.is_deleted == 1) {
+      if (existingKategori.isDeleted == 1) {
         return await db.update(
           'kategori',
           {
